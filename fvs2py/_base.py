@@ -37,11 +37,6 @@ class FVS(FvsCore):
     def load_keyfile(self, keywordfile: str | os.PathLike) -> None:
         """Sets the keywordfile as a command line argument to FVS.
 
-        This method will also reset the FVS instance so that now attributes
-        from a previous keyfile execution are retained. This is intended to
-        blow away results from previous runs that may still be pointed to in
-        memory.
-
         Args:
           keywordfile (str | os.PathLike): path to the FVS keyword file
         """
