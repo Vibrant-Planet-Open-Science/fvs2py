@@ -94,3 +94,10 @@ class FvsCore:
             self._fvsUnitConversion = self._lib.fvsUnitConversion
 
         return
+
+    def _close(self):
+        """Unloads the FVS DLL."""
+        close_func = self._lib.dlclose
+        close_func.argtypes = (ct.c_void_p,)
+        close_func.restype = ct.c_int
+        close_func(self._lib._handle)

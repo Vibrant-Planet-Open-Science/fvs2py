@@ -25,4 +25,4 @@ RUN pip install --upgrade pip pip-tools &&\
  pip install --no-cache-dir --upgrade -r /code/requirements-dev.txt
 COPY fvs2py /code/fvs2py
 
-CMD ["pytest", "-n",  "auto", "fvs2py"]
+CMD ["pytest", "fvs2py"]

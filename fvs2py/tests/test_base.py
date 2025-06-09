@@ -34,6 +34,7 @@ def test_load_keyfile(tmp_path):
     assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
     assert fvs.keyfile_path == keyfile_to_run
     assert fvs.keyfile == TEST_KEYFILE_PATH.read_text()
+    fvs._close()
 
 
 def test_stop_points():
@@ -45,6 +46,7 @@ def test_stop_points():
     fvs.set_stop_point_codes(-1, 0)
     assert fvs.stop_point_code == -1
     assert fvs.stop_point_year == 0
+    fvs._close()
 
 
 def test_stop_point_year_without_stop_point_code():
@@ -56,6 +58,7 @@ def test_stop_point_year_without_stop_point_code():
     )
     with pytest.raises(ValueError, match=match_msg):
         fvs.set_stop_point_codes(None, 0)
+    fvs._close()
 
 
 @pytest.mark.parametrize("stop_point_code", range(-2, 10))
@@ -71,6 +74,7 @@ def test_invalid_stop_point_code(stop_point_code):
         fvs.set_stop_point_codes(stop_point_code, 0)
         assert fvs.stop_point_code == stop_point_code
         assert fvs.stop_point_year == 0
+    fvs._close()
 
 
 def test_run_with_keyfile_succeeds(tmp_path):
@@ -90,12 +94,14 @@ def test_run_with_keyfile_succeeds(tmp_path):
     fvs.run()
     assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
     assert os.path.exists(f"{tmp_path}/test_keyfile.out")
+    fvs._close()
 
 
 def test_run_without_keyfile_raises():
     fvs = FVS(TEST_DLL)
     with pytest.raises(AttributeError, match="No keyfile loaded yet."):
         fvs.run()
+    fvs._close()
 
 
 def test_restart_codes_match_stop_point_codes(tmp_path):
@@ -125,3 +131,4 @@ def test_restart_codes_match_stop_point_codes(tmp_path):
     fvs.run()
     assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
     assert os.path.exists(f"{tmp_path}/test_keyfile.out")
+    fvs._close()
