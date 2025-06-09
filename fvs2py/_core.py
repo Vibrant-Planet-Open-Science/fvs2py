@@ -34,8 +34,8 @@ class FvsCore:
                 getattr(self._lib, routine)
             ):
                 logging.debug(f"Found {routine} as expected.")
-            # anticipate subroutine name changes depending upon compiler and OS
-            # unix pattern on fortran functions
+                # anticipate subroutine name changes depending upon compiler and OS
+                # unix pattern on fortran functions
             elif hasattr(self._lib, f"{routine.lower()}_") and callable(
                 getattr(self._lib, f"{routine.lower()}_")
             ):
