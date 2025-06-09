@@ -34,8 +34,8 @@ class FvsCore:
                 getattr(self._lib, routine)
             ):
                 logging.debug(f"Found {routine} as expected.")
-            # anticipate subroutine name changes depending upon compiler and OS
-            # unix pattern on fortran functions
+                # anticipate subroutine name changes depending upon compiler and OS
+                # unix pattern on fortran functions
             elif hasattr(self._lib, f"{routine.lower()}_") and callable(
                 getattr(self._lib, f"{routine.lower()}_")
             ):
@@ -94,3 +94,10 @@ class FvsCore:
             self._fvsUnitConversion = self._lib.fvsUnitConversion
 
         return
+
+    def _close(self):
+        """Unloads the FVS DLL."""
+        close_func = self._lib.dlclose
+        close_func.argtypes = (ct.c_void_p,)
+        close_func.restype = ct.c_int
+        close_func(self._lib._handle)
