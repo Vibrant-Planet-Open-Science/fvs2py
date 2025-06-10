@@ -24,7 +24,7 @@ class FVS(FvsCore):
     def __init__(self, lib_path: str | os.PathLike):
         super().__init__(lib_path=lib_path)
 
-        self._exit_code = None
+        self._exit_code = ct.c_int(0)
         self._itrncd = ct.c_int(-1)
         self._maxcycles = ct.c_int(0)
         self._maxplots = ct.c_int(0)
@@ -85,12 +85,11 @@ class FVS(FvsCore):
           3 - Extension or group activities error.
           4 - Scratch file error.
         """
-        exit_code = ct.c_int(0)
         self._fvsGetICCode.argtypes = [ct.POINTER(ct.c_int)]
         self._fvsGetICCode.restype = None
-        self._fvsGetICCode(exit_code)
+        self._fvsGetICCode(self._exit_code)
 
-        return exit_code.value
+        return self._exit_code.value
 
     @property
     def itrncd(self) -> int:
