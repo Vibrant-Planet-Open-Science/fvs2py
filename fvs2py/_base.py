@@ -4,6 +4,18 @@ import os
 from pathlib import Path
 
 from fvs2py._core import FvsCore
+from fvs2py.constants import (
+    MGMT_ID_COLUMN_NAME,
+    STAND_CN_COLUMN_NAME,
+    STAND_ID_COLUMN_NAME,
+    STR_MAXCYCLES,
+    STR_MAXPLOTS,
+    STR_MAXSPECIES,
+    STR_MAXTREES,
+    STR_NCYCLES,
+    STR_NPLOTS,
+    STR_NTREES,
+)
 
 
 class FVS(FvsCore):
@@ -12,12 +24,73 @@ class FVS(FvsCore):
     def __init__(self, lib_path: str | os.PathLike):
         super().__init__(lib_path=lib_path)
 
+        self._exit_code = None
         self._itrncd = ct.c_int(-1)
-        self.keyfile: str | None = None
-        self.keyfile_path: Path | None = None
+        self._maxcycles = ct.c_int(0)
+        self._maxplots = ct.c_int(0)
+        self._maxspecies = ct.c_int(0)
+        self._maxtrees = ct.c_int(0)
+        self._ncycles = ct.c_int(0)
+        self._nplots = ct.c_int(0)
+        self._ntrees = ct.c_int(0)
+        self._restart_code = ct.c_int(0)
         self._stop_point_code = None
         self._stop_point_year = None
-        self._restart_code = ct.c_int(0)
+        self.keyfile_path: Path | None = None
+        self.keyfile: str | None = None
+
+    @property
+    def dims(self) -> dict:
+        """Return the max dimensions of important FVS data storage."""
+        self._fvsDimSizes.argtypes = [
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+        ]
+        self._fvsDimSizes.restype = None
+
+        self._dims = {
+            STR_NTREES: self._ntrees,
+            STR_NCYCLES: self._ncycles,
+            STR_NPLOTS: self._nplots,
+            STR_MAXTREES: self._maxtrees,
+            STR_MAXSPECIES: self._maxspecies,
+            STR_MAXPLOTS: self._maxplots,
+            STR_MAXCYCLES: self._maxcycles,
+        }
+
+        self._fvsDimSizes(
+            self._ntrees,
+            self._ncycles,
+            self._nplots,
+            self._maxtrees,
+            self._maxspecies,
+            self._maxplots,
+            self._maxcycles,
+        )
+        return {key: val.value for key, val in self._dims.items()}
+
+    @property
+    def exit_code(self) -> int:
+        """Gets the integer code returned when FVS exits.
+
+        Possible values are:
+          0 - No serious errors occurred.
+          1 - Input data error.
+          2 - Keyword or expression error.
+          3 - Extension or group activities error.
+          4 - Scratch file error.
+        """
+        exit_code = ct.c_int(0)
+        self._fvsGetICCode.argtypes = [ct.POINTER(ct.c_int)]
+        self._fvsGetICCode.restype = None
+        self._fvsGetICCode(exit_code)
+
+        return exit_code.value
 
     @property
     def itrncd(self) -> int:
@@ -56,6 +129,45 @@ class FVS(FvsCore):
         self._fvsGetRestartCode(self._restart_code)
 
         return self._restart_code.value
+
+    @property
+    def stand_ids(self) -> dict:
+        """Return stand identification codes."""
+        self._fvsStandID.argtypes = [
+            ct.c_char_p,  # stand id
+            ct.c_char_p,  # database control number
+            ct.c_char_p,  # management id
+            ct.POINTER(ct.c_int),  # length of stand id
+            ct.POINTER(ct.c_int),  # length of control number
+            ct.POINTER(ct.c_int),  # length of management id
+        ]
+        self._fvsStandID.restype = None
+
+        if self.keyfile is None:
+            msg = "Keyfile not loaded yet."
+            raise AttributeError(msg)
+        if self.stop_point_code is None:
+            msg = "No inventory data loaded yet. Call `run` method."
+            raise RuntimeError(msg)
+
+        self._stand_id = ct.create_string_buffer(26)
+        self._stand_cn = ct.create_string_buffer(40)
+        self._mgmt_id = ct.create_string_buffer(4)
+
+        self._fvsStandID(
+            self._stand_id,
+            self._stand_cn,
+            self._mgmt_id,
+            ct.c_int(0),
+            ct.c_int(0),
+            ct.c_int(0),
+        )
+
+        return {
+            STAND_ID_COLUMN_NAME: self._stand_id.value.decode().strip(),
+            STAND_CN_COLUMN_NAME: self._stand_cn.value.decode().strip(),
+            MGMT_ID_COLUMN_NAME: self._mgmt_id.value.decode().strip(),
+        }
 
     @property
     def stop_point_code(self) -> int | None:
