@@ -1,9 +1,12 @@
 import importlib.resources
 import os
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from fvs2py._base import FVS
+from fvs2py.constants import STR_NCYCLES, SUMMARY_COLS
 
 TEST_DLL = "/usr/local/lib/FVSso.so"
 TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
@@ -270,3 +273,28 @@ def test_stand_ids(tmp_path):
     assert fvs.stand_ids["mgmt_id"] == NEW_MGMT_ID
     assert fvs.stand_ids["stand_id"] == NEW_STAND_ID
     fvs._close()
+
+
+def test_summary(tmp_path):
+    fvs = FVS(TEST_DLL)
+
+    with pytest.raises(AttributeError, match="Keyfile not loaded yet."):
+        fvs.stand_ids
+
+    keyfile_content = TEST_KEYFILE_PATH.read_text()
+    keyfile_to_run = tmp_path / "test_keyfile.key"
+    with open(keyfile_to_run, "w") as f:
+        f.write(keyfile_content)
+    fvs.load_keyfile(keyfile_to_run)
+    pre_summary = fvs.summary
+    assert pre_summary is None
+
+    fvs.run()
+    dims = fvs.dims
+    ncycles = dims[STR_NCYCLES]
+    post_summary = fvs.summary
+
+    assert isinstance(post_summary, pd.DataFrame)
+    assert post_summary.shape == (ncycles + 1, len(SUMMARY_COLS))
+    assert set(post_summary.columns) == set(SUMMARY_COLS)
+    assert (post_summary.dtypes == np.intc).all()
