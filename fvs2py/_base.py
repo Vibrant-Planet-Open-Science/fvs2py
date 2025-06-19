@@ -3,11 +3,15 @@ import logging
 import os
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from fvs2py._core import FvsCore
 from fvs2py.constants import (
     MGMT_ID_COLUMN_NAME,
     STAND_CN_COLUMN_NAME,
     STAND_ID_COLUMN_NAME,
+    STR_C_CONTIGUOUS,
     STR_MAXCYCLES,
     STR_MAXPLOTS,
     STR_MAXSPECIES,
@@ -15,6 +19,7 @@ from fvs2py.constants import (
     STR_NCYCLES,
     STR_NPLOTS,
     STR_NTREES,
+    SUMMARY_COLS,
 )
 
 
@@ -38,6 +43,9 @@ class FVS(FvsCore):
         self._stop_point_year = None
         self.keyfile_path: Path | None = None
         self.keyfile: str | None = None
+        self._stand_id = ct.create_string_buffer(26)
+        self._stand_cn = ct.create_string_buffer(40)
+        self._mgmt_id = ct.create_string_buffer(4)
 
     @property
     def dims(self) -> dict:
@@ -149,10 +157,6 @@ class FVS(FvsCore):
             msg = "No inventory data loaded yet. Call `run` method."
             raise RuntimeError(msg)
 
-        self._stand_id = ct.create_string_buffer(26)
-        self._stand_cn = ct.create_string_buffer(40)
-        self._mgmt_id = ct.create_string_buffer(4)
-
         self._fvsStandID(
             self._stand_id,
             self._stand_cn,
@@ -200,6 +204,37 @@ class FVS(FvsCore):
         if self._stop_point_year is not None:
             return self._stop_point_year.value
         return None
+
+    @property
+    def summary(self) -> pd.DataFrame:
+        """Return a dataframe with FVS Summary Statistics."""
+        self._fvsSummary.argtypes = [
+            np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_int),
+        ]
+        self._fvsSummary.restype = None
+
+        dims = self.dims
+        if dims[STR_NCYCLES] == 0:
+            return None
+        summary = np.zeros(
+            dtype=np.intc, shape=(dims[STR_NCYCLES] + 1, len(SUMMARY_COLS))
+        )
+        for i in range(dims[STR_NCYCLES] + 1):
+            self._fvsSummary(
+                summary[i],
+                ct.c_int(i + 1),  # icycle
+                ct.c_int(dims[STR_NCYCLES]),  # ncycles
+                ct.c_int(0),  # maxrow
+                ct.c_int(0),  # maxcol
+                ct.c_int(0),  # rtncode
+            )
+
+        return pd.DataFrame(summary, columns=SUMMARY_COLS)
 
     def load_keyfile(self, keywordfile: str | os.PathLike) -> None:
         """Sets the keywordfile as a command line argument to FVS.
@@ -285,8 +320,8 @@ class FVS(FvsCore):
 
     def run(
         self,
-        stop_point_code: int | None = None,
-        stop_point_year: int | None = None,
+        stop_point_code: int = 0,
+        stop_point_year: int = 0,
     ) -> None:
         """Runs FVS.
 

@@ -1,3 +1,4 @@
+STR_C_CONTIGUOUS = "C_CONTIGUOUS"
 STR_MAXCYCLES = "maxcycles"
 STR_MAXPLOTS = "maxplots"
 STR_MAXSPECIES = "maxspecies"
@@ -30,4 +31,27 @@ NEEDED_ROUTINES = (
     "fvsSummary",
     "fvsTreeAttr",
     "fvsUnitConversion",
+)
+
+SUMMARY_COLS = (
+    "year",
+    "age",
+    "tpa",
+    "tcuft",
+    "mcuft",
+    "bdft",
+    "rtpa",
+    "rtcuft",
+    "rmcuft",
+    "rbdft",
+    "atba",
+    "atccf",
+    "attopht",
+    "prdlen",
+    "acc",
+    "mort",
+    "sampwt",
+    "fortyp",
+    "sizecls",
+    "stkcls",
 )
