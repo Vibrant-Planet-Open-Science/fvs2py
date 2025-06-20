@@ -4,12 +4,16 @@ on: [pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    container:
+      image: david.danieldiaz/fvs2py:FS2024.4
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t testing -f fvs2py/tests/Dockerfile .
-
-      - name: Run tests in Docker container
-        run: docker run testing
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        path: /code
+    - name: Install pytest
+      run: pip install pytest
+    
+    - name: Run tests inside container
+      run: pytest /code/fvs2py
