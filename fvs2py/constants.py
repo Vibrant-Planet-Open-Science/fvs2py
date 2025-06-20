@@ -33,6 +33,38 @@ NEEDED_ROUTINES = (
     "fvsUnitConversion",
 )
 
+SPECIES_INDEX_COLUMN_NAME = "fvs_index"
+SPECIES_ALPHA_COLUMN_NAME = "fvs_alpha"
+SPECIES_FIA_COLUMN_NAME = "fia"
+SPECIES_PLANTS_COLUMN_NAME = "plants"
+SPECIES_COLUMN_NAMES = [
+    SPECIES_INDEX_COLUMN_NAME,
+    SPECIES_ALPHA_COLUMN_NAME,
+    SPECIES_FIA_COLUMN_NAME,
+    SPECIES_PLANTS_COLUMN_NAME,
+]
+SPECIES_ATTRS = (
+    "spccf",
+    "spsdi",
+    "spsiteindx",
+    "bfmind",
+    "bftopd",
+    "bfstmp",
+    "frmcls",
+    "bfmeth",
+    "mcmind",
+    "mctopd",
+    "mcstmp",
+    "mcmeth",
+    "baimult",
+    "htgmult",
+    "mortmult",
+    "mortdia1",
+    "mortdia2",
+    "regdmult",
+    "reghmult",
+)
+
 SUMMARY_COLS = (
     "year",
     "age",

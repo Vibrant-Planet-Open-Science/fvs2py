@@ -28,3 +28,10 @@ class FvsVariant(StrEnum):
     UTAH = "UT"  # Utah
     WESTERN_CASCADES = "WC"  # Westside Cascades
     WESTERN_SIERRAS = "WS"  # Western Sierra Nevada
+
+
+class FvsAttributeAccessor(StrEnum):
+    """How an FVS attribute is to be accessed."""
+
+    GET = "get"
+    SET = "set"
