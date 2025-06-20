@@ -10,10 +10,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        path: /code
     - name: Install pytest
       run: pip install pytest
     
     - name: Run tests inside container
-      run: pytest /code/fvs2py
+      run: pytest .
