@@ -11,7 +11,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install pytest
-      run: pip install pytest
+      run: pip install pytest pytest-mock
     
     - name: Run tests inside container
       run: pytest .
