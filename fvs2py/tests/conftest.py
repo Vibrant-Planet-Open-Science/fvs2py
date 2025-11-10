@@ -64,7 +64,7 @@ def mock_valid_fvs_dll(mocker):
             return
 
     mock_dll_obj = mocker.MagicMock(spec=ValidFvsDLL)
-    mocker.patch("ctypes.cdll.LoadLibrary", return_value=mock_dll_obj)
+    mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def mock_invalid_fvs_dll(mocker):
             return
 
     mock_dll_obj = mocker.MagicMock(spec=InvalidFvsDLL)
-    mocker.patch("ctypes.cdll.LoadLibrary", return_value=mock_dll_obj)
+    mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def mock_another_invalid_fvs_dll(mocker):
             self.fvs = None  # expected function is an attribute, not callable
 
     mock_dll_obj = mocker.MagicMock(spec=InvalidFvsDLL)
-    mocker.patch("ctypes.cdll.LoadLibrary", return_value=mock_dll_obj)
+    mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)
 
 
 @pytest.fixture
@@ -158,4 +158,4 @@ def mock_valid_reformatted_fvs_dll(mocker):
             return
 
     mock_dll_obj = mocker.MagicMock(spec=ValidFvsDLL)
-    mocker.patch("ctypes.cdll.LoadLibrary", return_value=mock_dll_obj)
+    mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)

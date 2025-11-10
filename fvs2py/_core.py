@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 
+from fvs2py.common import load_dll, unload_dll
 from fvs2py.constants import NEEDED_ROUTINES
 
 
@@ -18,13 +19,38 @@ class FvsCore:
           lib_path : path to FVS library
         """
         self.lib_path: Path = Path(os.path.abspath(lib_path))
-        self._lib: ct.CDLL = ct.cdll.LoadLibrary(str(self.lib_path))
+        self._lib: ct.CDLL | None = None
         self.variant: str = (
             os.path.basename(self.lib_path)
             .split(".")[0]
             .split("FVS")[-1]
             .upper()
         )
+
+        # Declare function attributes with type annotations for mypy
+        # These are ctypes foreign function pointers loaded from the shared library
+        self._fvs: ct._FuncPointer
+        self._fvsAddActivity: ct._FuncPointer
+        self._fvsAddTrees: ct._FuncPointer
+        self._fvsDimSizes: ct._FuncPointer
+        self._fvsEvmonAttr: ct._FuncPointer
+        self._fvsFFEAttrs: ct._FuncPointer
+        self._fvsGetRestartCode: ct._FuncPointer
+        self._fvsGetRtnCode: ct._FuncPointer
+        self._fvsGetICCode: ct._FuncPointer
+        self._fvsSVSDimSizes: ct._FuncPointer
+        self._fvsSetStoppointCodes: ct._FuncPointer
+        self._fvsSetCmdLine: ct._FuncPointer
+        self._fvsSVSObjData: ct._FuncPointer
+        self._fvsSpeciesAttr: ct._FuncPointer
+        self._fvsSpeciesCode: ct._FuncPointer
+        self._fvsStandID: ct._FuncPointer
+        self._fvsSummary: ct._FuncPointer
+        self._fvsTreeAttr: ct._FuncPointer
+        self._fvsUnitConversion: ct._FuncPointer
+
+        self._load_fvs()
+        assert self._lib is not None  # to satisfy type checker
 
         # check for needed routines that are missing
         missing = []
@@ -95,9 +121,17 @@ class FvsCore:
 
         return
 
-    def _close(self):
-        """Unloads the FVS DLL."""
-        close_func = self._lib.dlclose
-        close_func.argtypes = (ct.c_void_p,)
-        close_func.restype = ct.c_int
-        close_func(self._lib._handle)
+    def _load_fvs(self) -> None:
+        if self._lib:
+            logging.debug("Unloading existing library.")
+            self._unload_fvs()
+        self._lib = load_dll(self.lib_path)
+        return
+
+    def _unload_fvs(self) -> None:
+        if self._lib:
+            unload_dll(self._lib)
+            self._lib = None
+        else:
+            logging.debug("No library to unload.")
+        return

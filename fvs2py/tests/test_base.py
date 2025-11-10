@@ -62,7 +62,7 @@ def fvs():  # setup and teardown for FVS loaded from DLL/SO
     fvs = FVS(TEST_DLL)
     yield fvs
     # Teardown code executed after each test function
-    fvs._close()
+    fvs._unload_fvs()
 
 
 @pytest.fixture
@@ -210,11 +210,11 @@ def test_dims(keyfile):
     assert fvs.dims[STR_NTREES] == 2
     assert fvs.dims[STR_NCYCLES] == 10
     assert fvs.dims[STR_NPLOTS] == 1
-    fvs._close()
+    fvs._unload_fvs()
 
     fvs = FVS(TEST_DLL.replace("FVSso", "FVSop"))
     assert fvs.dims == FVSOP_START_DIMS
-    fvs._close()
+    fvs._unload_fvs()
 
 
 def test_stand_ids_without_load(fvs, keyfile):
@@ -273,7 +273,7 @@ def test_species_codes(variant):
 
     assert set(fvs.species_codes.columns) == set(SPECIES_COLUMN_NAMES)
     assert fvs.species_codes.shape == (max_species, len(SPECIES_COLUMN_NAMES))
-    fvs._close()
+    fvs._unload_fvs()
 
 
 @pytest.mark.parametrize("variant", FvsVariant)
@@ -296,7 +296,7 @@ def test_species_attrs(variant, keyfile, recwarn):
     max_species = dims[STR_MAXSPECIES]
     assert set(fvs.species_attrs.columns) == set(SPECIES_ATTRS)
     assert fvs.species_attrs.shape == (max_species, len(SPECIES_ATTRS))
-    fvs._close()
+    fvs._unload_fvs()
 
 
 def test_species_attr_get_set(fvs, keyfile):
@@ -308,3 +308,38 @@ def test_species_attr_get_set(fvs, keyfile):
         fvs.set_species_attr(attr, before + 1.0)
         after = fvs.get_species_attr(attr)
         assert np.isclose(after, (before + 1.0)).all()
+
+
+def test_reload_fvs(fvs, keyfile):
+    fvs.load_keyfile(keyfile)
+    fvs.run()
+    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    fvs._reload_fvs()
+    assert fvs.itrncd == FVS_ITRNCD_NOT_STARTED
+
+
+def test_load_keyfile_after_run(fvs, keyfile):
+    fvs.load_keyfile(keyfile)
+    fvs.run()
+    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.summary is not None  # results of first run exist
+    fvs.load_keyfile(keyfile)
+    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.summary is None  # results of first run were cleared
+
+
+def test_decorator_requires_fvs_library_following_unload(fvs):
+    fvs._unload_fvs()
+    with pytest.raises(
+        RuntimeError, match="FVS library not loaded, unable to call run."
+    ):
+        fvs.run()
+
+
+def test_fvs_methods_require_fvs_library(fvs):
+    fvs._unload_fvs()
+    with pytest.raises(
+        RuntimeError,
+        match="FVS library not loaded, unable to access species_attrs property.",
+    ):
+        fvs.species_attrs
