@@ -9,7 +9,10 @@ import numpy.typing as npt
 import pandas as pd
 
 from fvs2py._core import FvsCore
+from fvs2py.common import class_requires_fvs_library, fvs_property
 from fvs2py.constants import (
+    FVS_ITRNCD_FINISHED_ALL_STANDS,
+    FVS_ITRNCD_NOT_STARTED,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     SPECIES_COLUMN_NAMES,
@@ -28,15 +31,18 @@ from fvs2py.constants import (
 from fvs2py.enums import FvsAttributeAccessor
 
 
+@class_requires_fvs_library
 class FVS(FvsCore):
     """Main class for interacting with FVS at runtime."""
 
     def __init__(self, lib_path: str | os.PathLike):
         super().__init__(lib_path=lib_path)
+        self._initialize_attributes()
+        return
 
+    def _initialize_attributes(self) -> None:
         self.keyfile_path: Path | None = None
         self.keyfile: str | None = None
-
         self._exit_code = ct.c_int(0)
         self._itrncd = ct.c_int(-1)
         self._maxcycles = ct.c_int(0)
@@ -54,7 +60,7 @@ class FVS(FvsCore):
         self._stop_point_code = None
         self._stop_point_year = None
 
-    @property
+    @fvs_property
     def dims(self) -> dict:
         """Return the max dimensions of important FVS data storage."""
         self._fvsDimSizes.argtypes = [
@@ -89,7 +95,7 @@ class FVS(FvsCore):
         )
         return {key: val.value for key, val in self._dims.items()}
 
-    @property
+    @fvs_property
     def exit_code(self) -> int:
         """Gets the integer code returned when FVS exits.
 
@@ -106,15 +112,15 @@ class FVS(FvsCore):
 
         return self._exit_code.value
 
-    @property
+    @fvs_property
     def itrncd(self) -> int:
         """Returns with the current return code value in FVS.
 
         -1: indicates that FVS has not been started.
-         0:	indicates that FVS is in good running state.
-         1:	indicates that FVS has detected an error of some kind and should not
+         0: indicates that FVS is in good running state.
+         1: indicates that FVS has detected an error of some kind and should not
                 be used until reset by specifying new input.
-         2:	indicates that FVS has finished processing all the stands; new input
+         2: indicates that FVS has finished processing all the stands; new input
                 can be specified.
         """
         self._fvsGetRtnCode.argtypes = [ct.POINTER(ct.c_int)]
@@ -124,7 +130,7 @@ class FVS(FvsCore):
 
         return self._itrncd.value
 
-    @property
+    @fvs_property
     def restart_code(self) -> int:
         """A code indicating when FVS stopped.
 
@@ -144,14 +150,14 @@ class FVS(FvsCore):
 
         return self._restart_code.value
 
-    @property
+    @fvs_property
     def species(self) -> pd.DataFrame:
         """Returns species codes and attributes for all species."""
         codes = self.species_codes
         attrs = self.species_attrs
         return codes.merge(attrs, left_index=True, right_index=True, copy=False)
 
-    @property
+    @fvs_property
     def species_codes(self) -> pd.DataFrame:
         """Fetch the various codes used to refer to different tree species."""
         self._fvsSpeciesCode.argtypes = [
@@ -200,7 +206,7 @@ class FVS(FvsCore):
 
         return spp_codes
 
-    @property
+    @fvs_property
     def species_attrs(self) -> pd.DataFrame:
         """Returns a dataframe of species attributes.
 
@@ -208,20 +214,20 @@ class FVS(FvsCore):
             spccf: CCF for each species, recomputed in FVS so setting will
                 likely have no effect
             spsdi: SDI maximums for each species
-            spsiteindx:	Species site indices
-            bfmind:	Min diameter related to BFVOLUME keyword
-            bftopd:	Top diameter related to BFVOLUME keyword
-            bfstmp:	Stump height related to BFVOLUME keyword
-            frmcls:	Form class related to BFVOLUME keyword
-            bfmeth:	Volume calculation code related to BFVOLUME keyword
+            spsiteindx: Species site indices
+            bfmind: Min diameter related to BFVOLUME keyword
+            bftopd: Top diameter related to BFVOLUME keyword
+            bfstmp: Stump height related to BFVOLUME keyword
+            frmcls: Form class related to BFVOLUME keyword
+            bfmeth: Volume calculation code related to BFVOLUME keyword
                 (internal FVS variable methb)
-            mcmind:	Min diameter related to VOLUME keyword (internal FVS
+            mcmind: Min diameter related to VOLUME keyword (internal FVS
                 variable dbhmin)
-            mctopd:	Top diameter related to VOLUME keyword (internal FVS
+            mctopd: Top diameter related to VOLUME keyword (internal FVS
                 variable topd)
-            mcstmp:	Stump height related to VOLUME keyword (internal FVS
+            mcstmp: Stump height related to VOLUME keyword (internal FVS
                 variable stmp)
-            mcmeth:	Volume calculation code related to VOLUME keyword (internal
+            mcmeth: Volume calculation code related to VOLUME keyword (internal
                 FVS variable methc)
             baimult: Basal area increment multiplier for large trees (internal
                 FVS variable xdmult)
@@ -247,7 +253,7 @@ class FVS(FvsCore):
 
         return attrs
 
-    @property
+    @fvs_property
     def stand_ids(self) -> dict:
         """Return stand identification codes."""
         self._fvsStandID.argtypes = [
@@ -315,7 +321,7 @@ class FVS(FvsCore):
             return self._stop_point_year.value
         return None
 
-    @property
+    @fvs_property
     def summary(self) -> pd.DataFrame:
         """Return a dataframe with FVS Summary Statistics."""
         self._fvsSummary.argtypes = [
@@ -352,6 +358,16 @@ class FVS(FvsCore):
         Args:
           keywordfile (str | os.PathLike): path to the FVS keyword file
         """
+        if self.itrncd != FVS_ITRNCD_NOT_STARTED:
+            if self.itrncd != FVS_ITRNCD_FINISHED_ALL_STANDS:
+                msg = (
+                    "FVS had not completed the previous simulation. "
+                    "Outputs from that simulation may be incomplete."
+                )
+                warnings.warn(msg)
+            logging.debug("FVS was already started. Resetting.")
+            self._reload_fvs()
+
         self._fvsSetCmdLine.argtypes = [
             ct.c_char_p,
             ct.POINTER(ct.c_int),
@@ -578,3 +594,9 @@ class FVS(FvsCore):
                 msg = f"{attr} not found among species attributes"
                 raise NameError(msg)
             raise RuntimeError(ERRS[rtncode.value])
+
+    def _reload_fvs(self) -> None:
+        self._unload_fvs()
+        self._load_fvs()
+        self._initialize_attributes()
+        return
