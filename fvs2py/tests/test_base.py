@@ -7,6 +7,9 @@ import pytest
 
 from fvs2py._base import FVS
 from fvs2py.constants import (
+    FVS_ITRNCD_FINISHED_ALL_STANDS,
+    FVS_ITRNCD_GOOD_RUNNING_STATE,
+    FVS_ITRNCD_NOT_STARTED,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     SPECIES_COLUMN_NAMES,
@@ -26,10 +29,6 @@ TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
 FVS_RESTART_CODE_DONE_RUNNING_STAND = 100
 FVS_RESTART_CODE_INITIALIZED = 0
 FVS_STOP_POINT_CODE_AFTER_FIRST_EVMON = 2
-
-FVS_ITRNCD_NOT_STARTED = -1
-FVS_ITRNCD_GOOD_RUNNING_STATE = 0
-FVS_ITRNCD_FINISHED_ALL_STANDS = 2
 
 FVS_EXIT_CODE_INPUT_DATA_ERROR = 1
 FVS_EXIT_CODE_KEYWORD_ERROR = 2
@@ -323,6 +322,9 @@ def test_load_keyfile_after_run(fvs, keyfile):
     fvs.run()
     assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
     assert fvs.summary is not None  # results of first run exist
+    fvs.run()  # conclude the run
+    assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
+    assert fvs.summary is not None  # results of first run exist
     fvs.load_keyfile(keyfile)
     assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
     assert fvs.summary is None  # results of first run were cleared
@@ -343,3 +345,17 @@ def test_fvs_methods_require_fvs_library(fvs):
         match="FVS library not loaded, unable to access species_attrs property.",
     ):
         fvs.species_attrs
+
+
+def test_keyfile_reload_warning(fvs, keyfile, recwarn):
+    # check that warning is raised if keyfile is loaded after the run
+    fvs.load_keyfile(keyfile)
+    fvs.run()
+    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    fvs.load_keyfile(keyfile)
+    assert len(recwarn) == 1
+    w = recwarn.pop(UserWarning)
+    assert (
+        str(w.message)
+        == "FVS had not completed the previous simulation. Outputs from that simulation may be incomplete."
+    )

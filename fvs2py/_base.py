@@ -11,6 +11,8 @@ import pandas as pd
 from fvs2py._core import FvsCore
 from fvs2py.common import class_requires_fvs_library, fvs_property
 from fvs2py.constants import (
+    FVS_ITRNCD_FINISHED_ALL_STANDS,
+    FVS_ITRNCD_NOT_STARTED,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     SPECIES_COLUMN_NAMES,
@@ -356,7 +358,13 @@ class FVS(FvsCore):
         Args:
           keywordfile (str | os.PathLike): path to the FVS keyword file
         """
-        if self.itrncd != -1:
+        if self.itrncd != FVS_ITRNCD_NOT_STARTED:
+            if self.itrncd != FVS_ITRNCD_FINISHED_ALL_STANDS:
+                msg = (
+                    "FVS had not completed the previous simulation. "
+                    "Outputs from that simulation may be incomplete."
+                )
+                warnings.warn(msg)
             logging.debug("FVS was already started. Resetting.")
             self._reload_fvs()
 
