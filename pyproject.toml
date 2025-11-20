@@ -67,6 +67,8 @@ convention = "google"
 [tool.ruff.per-file-ignores]
 # Ignore pydocstyle and generic df names in test files.
 "test_*.py" = ["D", "PD901"]
+"fvs2py/tests/*.py" = ["D", "PD901"]
+"*.ipynb" = ["T201"]
 
 [tool.mypy]
 mypy_path = "fvs2py"
