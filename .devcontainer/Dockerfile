@@ -1,4 +1,4 @@
-FROM daviddanieldiaz/fvs:FS2024.4
+FROM daviddanieldiaz/fvs:FS2025.4c
 
 RUN groupadd -g 1000 fvs2py-dev && \
     useradd -m -u 1000 -g fvs2py-dev fvs2py-dev
