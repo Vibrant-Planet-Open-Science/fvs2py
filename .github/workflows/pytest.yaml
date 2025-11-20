@@ -5,13 +5,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: daviddanieldiaz/fvs2py:FS2024.4
+      image: daviddanieldiaz/fvs:FS2025.4c
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     - name: Install pytest
-      run: pip install pytest pytest-mock
+      run: pip install pytest pytest-mock -r requirements.txt
     
     - name: Run tests inside container
       run: pytest .
