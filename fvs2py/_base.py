@@ -323,7 +323,11 @@ class FVS(FvsCore):
 
     @fvs_property
     def summary(self) -> pd.DataFrame:
-        """Return a dataframe with FVS Summary Statistics."""
+        """Return a dataframe with FVS Summary Statistics for all initiated cycles.
+
+        The returned dataframe omits cycles that have not yet been initiated, which are
+        identifiable where all values in that row are zero.
+        """
         self._fvsSummary.argtypes = [
             np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),
             ct.POINTER(ct.c_int),
@@ -338,7 +342,8 @@ class FVS(FvsCore):
         if dims[STR_NCYCLES] == 0:
             return None
         summary = np.zeros(
-            dtype=np.intc, shape=(dims[STR_NCYCLES] + 1, len(SUMMARY_COLS))
+            dtype=np.intc,
+            shape=(dims[STR_NCYCLES] + 1, len(SUMMARY_COLS)),
         )
         for i in range(dims[STR_NCYCLES] + 1):
             self._fvsSummary(
@@ -350,7 +355,10 @@ class FVS(FvsCore):
                 ct.c_int(0),  # rtncode
             )
 
-        return pd.DataFrame(summary, columns=SUMMARY_COLS)
+        empty_years = (summary == 0).all(axis=1)
+        return pd.DataFrame(
+            summary[~empty_years, :], columns=SUMMARY_COLS
+        ).copy()
 
     def load_keyfile(self, keywordfile: str | os.PathLike) -> None:
         """Sets the keywordfile as a command line argument to FVS.
