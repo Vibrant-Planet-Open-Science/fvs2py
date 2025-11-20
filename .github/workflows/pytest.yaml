@@ -5,7 +5,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: daviddanieldiaz/fvs2py:FS2025.4c
+      image: daviddanieldiaz/fvs:FS2025.4c
     
     steps:
     - name: Checkout code
