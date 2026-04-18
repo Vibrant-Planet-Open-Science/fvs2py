@@ -73,7 +73,6 @@ convention = "google"
 [tool.mypy]
 mypy_path = "fvs2py"
 files = "fvs2py"
-plugins = "sqlalchemy.ext.mypy.plugin"
 
 [tool.pytest.ini_options]
 filterwarnings = [

@@ -4,22 +4,19 @@
         "dockerfile": "Dockerfile",
         "context": ".."
     },
+    "remoteUser": "${localEnv:USER}",
+    "updateRemoteUserUID": true,
     "remoteEnv": {
-        "PYTHONPATH": "/code/fvs2py"
-    },
-    "containerEnv": {
-        "PYTHONPATH": "/code/fvs2py"
+        "PYTHONPATH": "${containerWorkspaceFolder}/fvs2py"
     },
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {
+            "user": "${localEnv:USER}",
+            "installNano": true,
             "installZsh": true,
             "installOhMyZsh": true,
             "installOhMyZshConfig": true,
             "configureZshAsDefaultShell": true
-        },
-        "ghcr.io/prulloac/devcontainer-features/pre-commit:latest": {},
-        "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-            "packages": "nano"
         }
     },
     "customizations": {
@@ -45,9 +42,8 @@
                     "mypy.ini"
                 ],
                 "notebook.formatOnSave.enabled": true,
-                "python.defaultInterpreterPath": "/usr/local/bin/python3",
                 "python.analysis.extraPaths": [
-                    "/code/fvs2py"
+                    "${containerWorkspaceFolder}/fvs2py"
                 ],
                 "python.linting.mypyEnabled": true,
                 "python.linting.enabled": true,
@@ -59,7 +55,7 @@
                         "source.organizeImports": "explicit"
                     },
                     "terminal.integrated.env.linux": {
-                        "PYTHONPATH": "/code/fvs2py"
+                        "PYTHONPATH": "${containerWorkspaceFolder}/fvs2py"
                     }
                 }
             }
@@ -69,12 +65,6 @@
         "--name",
         "fvs2py-dev"
     ],
-    "mounts": [
-        "source=${localEnv:HOME}/.zshrc,target=/home/fvs2py-dev/.zshrc,type=bind",
-        "source=${localEnv:HOME}/.oh-my-zsh,target=/home/fvs2py-dev/.oh-my-zsh,type=bind"
-    ],
-    "postCreateCommand": "pip install pre-commit ipykernel -r requirements-dev.txt && pre-commit install",
-    "postStartCommand": "git config --global core.trustctime false && git config --global core.checkStat minimal",
-    "workspaceMount": "source=${localEnv:HOME}/projects/fvs2py,target=/code/fvs2py,type=bind",
-    "workspaceFolder": "/code/fvs2py"
+    "postCreateCommand": "pip freeze > /tmp/constraints.txt && pip install -c /tmp/constraints.txt -r requirements-dev.txt && pre-commit install",
+    "postStartCommand": "git config --global core.trustctime false && git config --global core.checkStat minimal"
 }
