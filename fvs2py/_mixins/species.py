@@ -7,7 +7,7 @@ import warnings
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd  # type: ignore[import-untyped]
+import pandas as pd
 
 from fvs2py.common import fvs_property
 from fvs2py.constants import (

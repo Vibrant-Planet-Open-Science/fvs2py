@@ -1,4 +1,5 @@
 ipykernel
+pandas-stubs
 pre-commit
 pytest
 pytest-mock

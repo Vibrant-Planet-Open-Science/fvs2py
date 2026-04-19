@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes as ct
 
 import numpy as np
-import pandas as pd  # type: ignore[import-untyped]
+import pandas as pd
 
 from fvs2py.common import call_out, fvs_property
 from fvs2py.constants import (
