@@ -84,7 +84,7 @@ class ControlMixin:
 
         Args:
             keywordfile: Path to the FVS keyword file.
-            check_single_stand: When true, require the keyfile to define
+            check_single_stand: When true (default), require the keyfile to define
                 exactly one stand (one each of ``STDIDENT``, ``PROCESS``,
                 and ``STOP``).
 
@@ -107,7 +107,17 @@ class ControlMixin:
             self.keyfile = f.read()
 
         if check_single_stand:
-            validate_single_stand(self.keyfile)
+            try:
+                validate_single_stand(self.keyfile)
+            except ValueError as exc:
+                msg = (
+                    f"{exc}\n"
+                    "If this keyfile is intended to describe multiple "
+                    "stands, bypass this check by calling "
+                    "`load_keyfile(..., check_single_stand=False)` and "
+                    "drive the simulation via `FVS.run_batch()`."
+                )
+                raise ValueError(msg) from exc
 
         cmdline = f"--keywordfile={self.keyfile_path}"
         nch = len(cmdline)
