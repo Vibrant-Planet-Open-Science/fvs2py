@@ -322,6 +322,42 @@ def test_control_mixin_set_stop_point_codes_rejects_year_without_code():
         stub.set_stop_point_codes(None, 2025)
 
 
+def test_control_mixin_stop_point_code_setter_delegates():
+    stub = _ControlStub()
+    stub.stop_point_code = 3
+    assert stub.stop_point_code == 3
+    assert stub.stop_point_year == 0
+
+
+def test_control_mixin_stop_point_year_setter_delegates():
+    stub = _ControlStub()
+    stub.stop_point_year = 2025
+    assert stub.stop_point_code == 0
+    assert stub.stop_point_year == 2025
+
+
+def test_control_mixin_stop_point_code_setter_preserves_existing_year():
+    stub = _ControlStub()
+    stub.set_stop_point_codes(1, 2020)
+    stub.stop_point_code = 4
+    assert stub.stop_point_code == 4
+    assert stub.stop_point_year == 2020
+
+
+def test_control_mixin_stop_point_year_setter_preserves_existing_code():
+    stub = _ControlStub()
+    stub.set_stop_point_codes(2, 2015)
+    stub.stop_point_year = 2030
+    assert stub.stop_point_code == 2
+    assert stub.stop_point_year == 2030
+
+
+def test_control_mixin_stop_point_code_setter_validates():
+    stub = _ControlStub()
+    with pytest.raises(ValueError, match="Invalid value for stop_point_code"):
+        stub.stop_point_code = 99
+
+
 # ---------------------------------------------------------------------------
 # SpeciesMixin
 # ---------------------------------------------------------------------------

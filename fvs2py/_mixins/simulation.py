@@ -94,7 +94,7 @@ class SimulationMixin:
         stop_point_code: int = 0,
         stop_point_year: int = 0,
     ) -> None:
-        """Run a single-stand FVS simulation to completion.
+        """Run FVS until the stand completes or a stop point is reached.
 
         The call stays eager: when the stand finishes (FVS reports
         ``restart_code == FvsRestartCode.DONE_RUNNING_STAND``), :meth:`run`
