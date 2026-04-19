@@ -9,7 +9,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from fvs2py._core import FvsCore
-from fvs2py.common import class_requires_fvs_library, fvs_property
+from fvs2py.common import call_out, class_requires_fvs_library, fvs_property
 from fvs2py.constants import (
     FVS_ITRNCD_FINISHED_ALL_STANDS,
     FVS_ITRNCD_NOT_STARTED,
@@ -63,37 +63,18 @@ class FVS(FvsCore):
     @fvs_property
     def dims(self) -> dict:
         """Return the max dimensions of important FVS data storage."""
-        self._fvsDimSizes.argtypes = [
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-        ]
-        self._fvsDimSizes.restype = None
-
-        self._dims = {
-            STR_NTREES: self._ntrees,
-            STR_NCYCLES: self._ncycles,
-            STR_NPLOTS: self._nplots,
-            STR_MAXTREES: self._maxtrees,
-            STR_MAXSPECIES: self._maxspecies,
-            STR_MAXPLOTS: self._maxplots,
-            STR_MAXCYCLES: self._maxcycles,
-        }
-
-        self._fvsDimSizes(
-            self._ntrees,
-            self._ncycles,
-            self._nplots,
-            self._maxtrees,
-            self._maxspecies,
-            self._maxplots,
-            self._maxcycles,
+        ntrees, ncycles, nplots, maxtrees, maxspecies, maxplots, maxcycles = (
+            call_out(self._fvsDimSizes, out_types=(ct.c_int,) * 7)
         )
-        return {key: val.value for key, val in self._dims.items()}
+        return {
+            STR_NTREES: ntrees,
+            STR_NCYCLES: ncycles,
+            STR_NPLOTS: nplots,
+            STR_MAXTREES: maxtrees,
+            STR_MAXSPECIES: maxspecies,
+            STR_MAXPLOTS: maxplots,
+            STR_MAXCYCLES: maxcycles,
+        }
 
     @fvs_property
     def exit_code(self) -> int:
@@ -106,11 +87,7 @@ class FVS(FvsCore):
           3 - Extension or group activities error.
           4 - Scratch file error.
         """
-        self._fvsGetICCode.argtypes = [ct.POINTER(ct.c_int)]
-        self._fvsGetICCode.restype = None
-        self._fvsGetICCode(self._exit_code)
-
-        return self._exit_code.value
+        return call_out(self._fvsGetICCode)
 
     @fvs_property
     def itrncd(self) -> int:
@@ -123,12 +100,7 @@ class FVS(FvsCore):
          2: indicates that FVS has finished processing all the stands; new input
                 can be specified.
         """
-        self._fvsGetRtnCode.argtypes = [ct.POINTER(ct.c_int)]
-        self._fvsGetRtnCode.restype = None
-
-        self._fvsGetRtnCode(self._itrncd)
-
-        return self._itrncd.value
+        return call_out(self._fvsGetRtnCode)
 
     @fvs_property
     def restart_code(self) -> int:
@@ -144,11 +116,7 @@ class FVS(FvsCore):
         100: Stop was done after a stand has been simulated but prior to
                 starting a subsequent stand.
         """
-        self._fvsGetRestartCode.argtypes = [ct.POINTER(ct.c_int)]
-        self._fvsGetRestartCode.restype = None
-        self._fvsGetRestartCode(self._restart_code)
-
-        return self._restart_code.value
+        return call_out(self._fvsGetRestartCode)
 
     @fvs_property
     def species(self) -> pd.DataFrame:
@@ -160,17 +128,6 @@ class FVS(FvsCore):
     @fvs_property
     def species_codes(self) -> pd.DataFrame:
         """Fetch the various codes used to refer to different tree species."""
-        self._fvsSpeciesCode.argtypes = [
-            ct.c_char_p,  # FVS species code
-            ct.c_char_p,  # FIA species code
-            ct.c_char_p,  # PLANTS code
-            ct.POINTER(ct.c_int),  # species index for this variant
-            ct.POINTER(ct.c_int),  # num char for fvs code
-            ct.POINTER(ct.c_int),  # num char for fia code
-            ct.POINTER(ct.c_int),  # num char for plants code
-            ct.POINTER(ct.c_int),  # return code
-        ]
-        self._fvsSpeciesCode.restype = None
         dims = self.dims
 
         _fvs_spp = ct.create_string_buffer(4)
@@ -256,16 +213,6 @@ class FVS(FvsCore):
     @fvs_property
     def stand_ids(self) -> dict:
         """Return stand identification codes."""
-        self._fvsStandID.argtypes = [
-            ct.c_char_p,  # stand id
-            ct.c_char_p,  # database control number
-            ct.c_char_p,  # management id
-            ct.POINTER(ct.c_int),  # length of stand id
-            ct.POINTER(ct.c_int),  # length of control number
-            ct.POINTER(ct.c_int),  # length of management id
-        ]
-        self._fvsStandID.restype = None
-
         if self.keyfile is None:
             msg = "Keyfile not loaded yet."
             raise AttributeError(msg)
@@ -376,13 +323,6 @@ class FVS(FvsCore):
             logging.debug("FVS was already started. Resetting.")
             self._reload_fvs()
 
-        self._fvsSetCmdLine.argtypes = [
-            ct.c_char_p,
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-        ]
-        self._fvsSetCmdLine.restype = None
-
         self.keyfile_path = Path(os.path.abspath(keywordfile))
         with open(self.keyfile_path) as f:
             self.keyfile = f.read()
@@ -421,12 +361,6 @@ class FVS(FvsCore):
                -1 : Stop at every cycle
                YYYY : A specific year during the simulation period
         """
-        self._fvsSetStoppointCodes.argtypes = [
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-        ]
-        self._fvsSetStoppointCodes.restype = None
-
         if stop_point_code is not None:
             if stop_point_code in range(-1, 8):
                 self._stop_point_code = ct.c_int(stop_point_code)  # type: ignore[assignment]
@@ -514,9 +448,6 @@ class FVS(FvsCore):
                -1 : Stop at every cycle
                YYYY : A specific year during the simulation period
         """
-        self._fvs.argtypes = [ct.POINTER(ct.c_int)]
-        self._fvs.restype = None
-
         if self.keyfile is None:
             msg = "No keyfile loaded yet."
             raise AttributeError(msg)

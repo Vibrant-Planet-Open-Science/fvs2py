@@ -5,7 +5,7 @@ import functools
 import logging
 import os
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar, cast
+from typing import Any, ParamSpec, TypeVar, cast
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -105,3 +105,32 @@ def class_requires_fvs_library(cls: ClassT) -> ClassT:
             decorated_method = function_requires_fvs_library()(method)
             setattr(cls, name, decorated_method)
     return cls
+
+
+def call_out(
+    func: Callable[..., Any],
+    *in_args: Any,
+    out_types: tuple[type, ...] = (ct.c_int,),
+) -> Any:
+    """Call a ctypes function, auto-allocating output pointer args.
+
+    Allocates one fresh ctypes object of each type in ``out_types``, appends
+    them (in order) after ``in_args`` when calling ``func``, and returns the
+    unwrapped ``.value`` of each output.
+
+    Args:
+        func: Resolved ctypes foreign function whose trailing parameters are
+            ``POINTER`` types corresponding to ``out_types``.
+        *in_args: Positional input arguments passed to ``func`` unchanged.
+        out_types: Ctypes scalar types to allocate as output parameters.
+            Defaults to a single ``ct.c_int`` output.
+
+    Returns:
+        The scalar value if exactly one output was requested, otherwise a
+        tuple of unwrapped scalars in declaration order.
+    """
+    outs = [t(0) for t in out_types]
+    func(*in_args, *outs)
+    if len(outs) == 1:
+        return outs[0].value
+    return tuple(o.value for o in outs)
