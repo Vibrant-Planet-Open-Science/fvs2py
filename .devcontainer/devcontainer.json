@@ -6,9 +6,6 @@
     },
     "remoteUser": "${localEnv:USER}",
     "updateRemoteUserUID": true,
-    "remoteEnv": {
-        "PYTHONPATH": "${containerWorkspaceFolder}/fvs2py"
-    },
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {
             "user": "${localEnv:USER}",
@@ -42,9 +39,6 @@
                     "mypy.ini"
                 ],
                 "notebook.formatOnSave.enabled": true,
-                "python.analysis.extraPaths": [
-                    "${containerWorkspaceFolder}/fvs2py"
-                ],
                 "python.linting.mypyEnabled": true,
                 "python.linting.enabled": true,
                 "[python]": {
@@ -53,9 +47,6 @@
                     "editor.codeActionsOnSave": {
                         "source.fixAll": "explicit",
                         "source.organizeImports": "explicit"
-                    },
-                    "terminal.integrated.env.linux": {
-                        "PYTHONPATH": "${containerWorkspaceFolder}/fvs2py"
                     }
                 }
             }
@@ -65,6 +56,6 @@
         "--name",
         "fvs2py-dev"
     ],
-    "postCreateCommand": "pip freeze > /tmp/constraints.txt && pip install -c /tmp/constraints.txt -r requirements-dev.txt && pre-commit install",
+    "postCreateCommand": "pip install -e . && pre-commit install",
     "postStartCommand": "git config --global core.trustctime false && git config --global core.checkStat minimal"
 }

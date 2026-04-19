@@ -14,6 +14,7 @@ from fvs2py._mixins import (
 )
 from fvs2py.common import class_requires_fvs_library
 from fvs2py.constants import SPECIES_ATTRS
+from fvs2py.enums import FvsSimulationState
 
 
 @class_requires_fvs_library
@@ -57,6 +58,7 @@ class FVS(SpeciesMixin, StandMixin, SimulationMixin, ControlMixin, FvsCore):
         self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
         self._stand_cn = ct.create_string_buffer(40)
         self._stand_id = ct.create_string_buffer(26)
+        self._state = FvsSimulationState.IDLE
         self._stop_point_code = None
         self._stop_point_year = None
 

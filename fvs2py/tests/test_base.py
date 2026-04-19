@@ -132,12 +132,48 @@ def test_run_with_keyfile_succeeds(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     assert fvs.restart_code == FvsRestartCode.INITIALIZED
     fvs.run()
-    assert fvs.restart_code == FvsRestartCode.DONE_RUNNING_STAND
-    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
-    fvs.run()
     assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
 
     assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
+
+
+def test_run_batch_does_not_auto_flush(fvs, keyfile):
+    # run_batch preserves the historic non-flushing behavior: one call runs
+    # a stand's cycles until DONE_RUNNING_STAND, a second call flushes. The
+    # fixture keyfile is single-stand, but we opt out of the guard because
+    # run_batch is the intended entry point for multi-stand callers.
+    fvs.load_keyfile(keyfile, check_single_stand=False)
+    fvs.run_batch()
+    assert fvs.restart_code == FvsRestartCode.DONE_RUNNING_STAND
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
+    fvs.run_batch()
+    assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
+    assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
+
+
+def test_load_keyfile_multi_stand_raises_with_bypass_hint(
+    fvs, keyfile, tmp_path
+):
+    # Duplicate the fixture's single STDIDENT stand so the keyfile trips the
+    # default single-stand guard. The resulting ValueError should surface
+    # both the underlying `validate_single_stand` diagnostic and the
+    # load_keyfile-level hint pointing the caller at run_batch.
+    multi_stand_body = keyfile.read_text()
+    multi_stand_body += "\n" + multi_stand_body
+    multi_keyfile = tmp_path / "multi_stand.key"
+    multi_keyfile.write_text(multi_stand_body)
+
+    with pytest.raises(
+        ValueError, match="found 2 instances of 'STDIDENT'"
+    ) as exc:
+        fvs.load_keyfile(multi_keyfile)
+    assert "check_single_stand=False" in str(exc.value)
+    assert "run_batch" in str(exc.value)
+
+
+def test_run_batch_without_keyfile_raises(fvs):
+    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
+        fvs.run_batch()
 
 
 def test_run_without_keyfile_raises(fvs):
@@ -158,9 +194,6 @@ def test_restart_codes_match_stop_point_codes(fvs, keyfile):
         stop_point_year=2010,
     )
     assert fvs.restart_code == FvsRestartCode.AFTER_FIRST_EVMON
-    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
-    fvs.run()
-    assert fvs.restart_code == FvsRestartCode.DONE_RUNNING_STAND
     assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.run()
     assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
@@ -310,7 +343,7 @@ def test_species_attr_get_set(fvs, keyfile):
 def test_reload_fvs(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     fvs._reload_fvs()
     assert fvs.itrncd == FvsItrnCode.NOT_STARTED
 
@@ -318,9 +351,6 @@ def test_reload_fvs(fvs, keyfile):
 def test_load_keyfile_after_run(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
-    assert fvs.summary is not None  # results of first run exist
-    fvs.run()  # conclude the run
     assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     assert fvs.summary is not None  # results of first run exist
     fvs.load_keyfile(keyfile)
@@ -346,9 +376,15 @@ def test_fvs_methods_require_fvs_library(fvs):
 
 
 def test_keyfile_reload_warning(fvs, keyfile, recwarn):
-    # check that warning is raised if keyfile is loaded after the run
+    # Reloading mid-simulation (itrncd neither NOT_STARTED nor
+    # FINISHED_ALL_STANDS) must warn the caller that the previous run's
+    # outputs may be incomplete. We exercise that by pausing at an
+    # intermediate stop-point and then calling load_keyfile again.
     fvs.load_keyfile(keyfile)
-    fvs.run()
+    fvs.run(
+        stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON,
+        stop_point_year=2010,
+    )
     assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.load_keyfile(keyfile)
     assert len(recwarn) == 1

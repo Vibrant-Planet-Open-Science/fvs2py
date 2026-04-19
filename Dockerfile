@@ -26,4 +26,6 @@ ENV PIP_PREFER_BINARY=1
 RUN pip install --upgrade pip pip-tools \
     && pip install --no-cache-dir --upgrade -r requirements.txt \
     && rm requirements.txt
+COPY ./pyproject.toml ./README.md ./LICENSE ${APP_DIR}/
 COPY ./fvs2py ${APP_DIR}/fvs2py
+RUN pip install --no-deps --no-cache-dir -e .
