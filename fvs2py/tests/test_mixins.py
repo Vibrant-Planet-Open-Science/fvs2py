@@ -31,7 +31,12 @@ from fvs2py.constants import (
     STR_NPLOTS,
     STR_NTREES,
 )
-from fvs2py.enums import FvsAttributeAccessor, FvsItrnCode
+from fvs2py.enums import (
+    FvsAttributeAccessor,
+    FvsItrnCode,
+    FvsRestartCode,
+    FvsSimulationState,
+)
 
 
 class _StubLib:
@@ -124,10 +129,24 @@ def test_stand_mixin_stand_ids_returns_decoded_values():
 
 
 class _SimulationStub(SimulationMixin):
+    """Minimal SimulationMixin host with writer-based ctypes stubs.
+
+    The ``_fvs`` stub is a no-op so :meth:`SimulationMixin.run` can exercise
+    its control flow without a real FVS library. :meth:`set_stop_point_codes`
+    is stubbed to a no-op as well; tests that want to observe or override it
+    assign directly on the instance.
+    """
+
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
         self._lib = _StubLib()
         self.keyfile = None
         self._itrncd = ct.c_int(-1)
+        self._state = FvsSimulationState.IDLE
+        # SimulationMixin.run() reads these via an f-string in logging.debug,
+        # so they must exist regardless of log level.
+        self.stop_point_code = 0
+        self.stop_point_year = 0
+        self.fvs_call_count = 0
 
         def writer(value):
             def _f(out):
@@ -135,9 +154,14 @@ class _SimulationStub(SimulationMixin):
 
             return _f
 
+        def fvs(_itrncd_ptr):
+            self.fvs_call_count += 1
+
         self._fvsGetRtnCode = writer(itrncd)
         self._fvsGetICCode = writer(exit_code)
         self._fvsGetRestartCode = writer(restart_code)
+        self._fvs = fvs
+        self.set_stop_point_codes = lambda *_args: None
 
 
 def test_simulation_mixin_itrncd_reads_fvs_output():
@@ -159,6 +183,96 @@ def test_simulation_mixin_run_without_keyfile_raises():
     stub = _SimulationStub()
     with pytest.raises(AttributeError, match="No keyfile loaded yet."):
         stub.run()
+
+
+def test_simulation_mixin_run_guards_against_reentrant_call():
+    stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
+    stub.keyfile = "STDIDENT\n"
+    stub._state = FvsSimulationState.RUNNING
+    with pytest.raises(RuntimeError, match="Simulation already in progress"):
+        stub.run()
+
+
+def test_simulation_mixin_run_sets_state_complete_on_success():
+    # itrncd != GOOD_RUNNING_STATE → loop never enters; restart_code != DONE →
+    # no flush call. We only observe the state transition IDLE → COMPLETE.
+    stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
+    stub.keyfile = "STDIDENT\n"
+    stub.run()
+    assert stub._state == FvsSimulationState.COMPLETE
+    assert stub.fvs_call_count == 0
+
+
+def test_simulation_mixin_run_flushes_when_stand_done():
+    # restart_code == DONE_RUNNING_STAND and itrncd already at FINISHED_ALL_STANDS
+    # means the while-loop exits immediately but the flush call still fires.
+    stub = _SimulationStub(
+        itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
+        restart_code=int(FvsRestartCode.DONE_RUNNING_STAND),
+    )
+    stub.keyfile = "STDIDENT\n"
+    stub.run()
+    assert stub.fvs_call_count == 1
+    assert stub._state == FvsSimulationState.COMPLETE
+
+
+def test_simulation_mixin_run_sets_state_error_on_exception():
+    # itrncd=GOOD_RUNNING_STATE forces the while-loop to call _fvs at least
+    # once; we make that call blow up to exercise the state=ERROR transition.
+    stub = _SimulationStub(itrncd=int(FvsItrnCode.GOOD_RUNNING_STATE))
+    stub.keyfile = "STDIDENT\n"
+
+    def boom(_itrncd_ptr):
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    stub._fvs = boom
+    with pytest.raises(RuntimeError, match="boom"):
+        stub.run()
+    assert stub._state == FvsSimulationState.ERROR
+
+
+def test_simulation_mixin_run_batch_without_keyfile_raises():
+    stub = _SimulationStub()
+    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
+        stub.run_batch()
+
+
+def test_simulation_mixin_run_batch_guards_against_reentrant_call():
+    stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
+    stub.keyfile = "STDIDENT\n"
+    stub._state = FvsSimulationState.RUNNING
+    with pytest.raises(RuntimeError, match="Simulation already in progress"):
+        stub.run_batch()
+
+
+def test_simulation_mixin_run_batch_does_not_flush_on_stand_done():
+    # Identical setup to test_simulation_mixin_run_flushes_when_stand_done
+    # but via run_batch: itrncd starts at FINISHED_ALL_STANDS (loop skipped)
+    # and restart_code == DONE_RUNNING_STAND. run() would emit one flush _fvs
+    # call; run_batch must NOT.
+    stub = _SimulationStub(
+        itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
+        restart_code=int(FvsRestartCode.DONE_RUNNING_STAND),
+    )
+    stub.keyfile = "STDIDENT\n"
+    stub.run_batch()
+    assert stub.fvs_call_count == 0
+    assert stub._state == FvsSimulationState.COMPLETE
+
+
+def test_simulation_mixin_run_batch_sets_state_error_on_exception():
+    stub = _SimulationStub(itrncd=int(FvsItrnCode.GOOD_RUNNING_STATE))
+    stub.keyfile = "STDIDENT\n"
+
+    def boom(_itrncd_ptr):
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    stub._fvs = boom
+    with pytest.raises(RuntimeError, match="boom"):
+        stub.run_batch()
+    assert stub._state == FvsSimulationState.ERROR
 
 
 # ---------------------------------------------------------------------------

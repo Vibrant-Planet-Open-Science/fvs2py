@@ -130,3 +130,19 @@ class FvsAttrReturnCode(IntEnum):
         obj._value_ = value
         obj.message = message
         return obj
+
+
+class FvsSimulationState(StrEnum):
+    """Python-side state of the FVS simulation lifecycle.
+
+    Tracked on ``FVS._state`` so that :meth:`FVS.run` can guard against
+    re-entrant invocation and so callers (or future batch helpers) can reason
+    about whether a simulation is idle, in-flight, finished, or has failed.
+    These values are opaque identifiers; they do not correspond to any FVS
+    return code.
+    """
+
+    IDLE = "idle"
+    RUNNING = "running"
+    COMPLETE = "complete"
+    ERROR = "error"

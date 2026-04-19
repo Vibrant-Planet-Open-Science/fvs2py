@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fvs2py.enums import FvsItrnCode, FvsStopPointCode
+from fvs2py.keyfile import validate_single_stand
 
 
 class ControlMixin:
@@ -66,11 +67,30 @@ class ControlMixin:
             return self._stop_point_year.value
         return None
 
-    def load_keyfile(self, keywordfile: str | os.PathLike) -> None:
-        """Sets the keywordfile as a command line argument to FVS.
+    def load_keyfile(
+        self,
+        keywordfile: str | os.PathLike,
+        *,
+        check_single_stand: bool = True,
+    ) -> None:
+        """Set the keywordfile as a command-line argument to FVS.
+
+        If ``check_single_stand`` is true (the default), the keyfile text is
+        first passed to :func:`fvs2py.keyfile.validate_single_stand`; a keyfile
+        that describes zero or multiple stands raises :class:`ValueError`
+        before FVS is invoked. Callers driving multi-stand runs via
+        :meth:`FVS.run_batch` must set ``check_single_stand=False`` to bypass
+        the guard.
 
         Args:
-          keywordfile (str | os.PathLike): path to the FVS keyword file
+            keywordfile: Path to the FVS keyword file.
+            check_single_stand: When true, require the keyfile to define
+                exactly one stand (one each of ``STDIDENT``, ``PROCESS``,
+                and ``STOP``).
+
+        Raises:
+            ValueError: If ``check_single_stand`` is true and the keyfile
+                fails :func:`fvs2py.keyfile.validate_single_stand`.
         """
         if self.itrncd != FvsItrnCode.NOT_STARTED:
             if self.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
@@ -85,6 +105,9 @@ class ControlMixin:
         self.keyfile_path = Path(os.path.abspath(keywordfile))
         with open(self.keyfile_path) as f:
             self.keyfile = f.read()
+
+        if check_single_stand:
+            validate_single_stand(self.keyfile)
 
         cmdline = f"--keywordfile={self.keyfile_path}"
         nch = len(cmdline)

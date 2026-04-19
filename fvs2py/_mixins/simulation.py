@@ -7,6 +7,7 @@ import logging
 from collections.abc import Callable
 
 from fvs2py.common import call_out, fvs_property
+from fvs2py.enums import FvsItrnCode, FvsRestartCode, FvsSimulationState
 
 
 class SimulationMixin:
@@ -15,8 +16,8 @@ class SimulationMixin:
     Assumes the composed class provides the foreign-function attributes
     ``_fvs``, ``_fvsGetICCode``, ``_fvsGetRtnCode``, ``_fvsGetRestartCode``
     (resolved by :class:`fvs2py._core.FvsCore`) plus the Python-side buffers
-    ``_itrncd``, ``keyfile``, and the :meth:`set_stop_point_codes` helper
-    contributed by :class:`ControlMixin`.
+    ``_itrncd`` and ``_state``, the ``keyfile`` attribute, and the
+    :meth:`set_stop_point_codes` helper contributed by :class:`ControlMixin`.
     """
 
     _fvs: ct._FuncPointer
@@ -24,6 +25,7 @@ class SimulationMixin:
     _fvsGetRtnCode: ct._FuncPointer
     _fvsGetRestartCode: ct._FuncPointer
     _itrncd: ct.c_int
+    _state: FvsSimulationState
     keyfile: str | None
     stop_point_code: int | None
     stop_point_year: int | None
@@ -71,26 +73,40 @@ class SimulationMixin:
         """
         return call_out(self._fvsGetRestartCode)
 
+    def _run_cycles(self) -> None:
+        """Advance FVS until the current stand pauses or reaches stand-done.
+
+        Shared inner loop used by both :meth:`run` and :meth:`run_batch`: call
+        ``_fvs`` while FVS reports a good running state, breaking out the
+        moment ``restart_code`` leaves ``INITIALIZED`` (either a stop-point
+        pause or the ``DONE_RUNNING_STAND`` marker).
+        """
+        while self.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
+            logging.debug("itrncd in GOOD_RUNNING_STATE.")
+            self._fvs(self._itrncd)
+            logging.debug(f"Ran _fvs routine, itrncd is {self.itrncd}")
+            if self.restart_code != FvsRestartCode.INITIALIZED:
+                logging.debug("restart code non-zero, halting run loop.")
+                break
+
     def run(
         self,
         stop_point_code: int = 0,
         stop_point_year: int = 0,
     ) -> None:
-        """Runs FVS.
+        """Run a single-stand FVS simulation to completion.
 
-        Note that stopping after the simulation of each stand in a simulation is
-        done even when no stop request has been scheduled (that is, FVS will
-        return at the end of each stand in a simulation even if there are no
-        stop codes specified). Once a stand has been fully processed by FVS, the
-        FVS `restart_code` is set to 100 and the call to run() returns.
+        The call stays eager: when the stand finishes (FVS reports
+        ``restart_code == FvsRestartCode.DONE_RUNNING_STAND``), :meth:`run`
+        issues one additional ``_fvs`` call to flush the main output file
+        before returning, so callers do not need to invoke :meth:`run` a
+        second time just to finalize output. When ``stop_point_code`` pauses
+        the simulation mid-cycle, no flush is performed and the next call to
+        :meth:`run` resumes from the stop.
 
-        If there are multiple stands in a single keyfile, the simulation of the
-        next stand can be triggered by calling run() again.
-
-        The main output text file may be truncated even after the last stand has
-        been simulated. To conclude FVS writing to the main output file, call
-        run() one last time. The `itrncd` attribute should then change to a
-        value of 2, indicating all stands have been processed.
+        Multi-stand keyfiles are out of scope here; use :meth:`run_batch`
+        (and load the keyfile with ``check_single_stand=False``) when the
+        keyfile defines more than one stand.
 
         Args:
             stop_point_code (optional, int): when FVS should stop during a cycle:
@@ -112,19 +128,78 @@ class SimulationMixin:
 
         Raises:
             AttributeError: If no keyfile has been loaded yet.
+            RuntimeError: If another :meth:`run` call is already in progress
+                on this instance.
         """
         if self.keyfile is None:
             msg = "No keyfile loaded yet."
             raise AttributeError(msg)
+        if self._state == FvsSimulationState.RUNNING:
+            msg = "Simulation already in progress."
+            raise RuntimeError(msg)
         logging.debug("Found keyfile.")
         self.set_stop_point_codes(stop_point_code, stop_point_year)
         logging.debug(
-            f"Set stop point codes, {stop_point_code}:{self.stop_point_code}, {stop_point_year}:{self.stop_point_year}"
+            f"Set stop point codes, {stop_point_code}:{self.stop_point_code}, "
+            f"{stop_point_year}:{self.stop_point_year}"
         )
-        while self.itrncd == 0:
-            logging.debug("itrncd still zero.")
-            self._fvs(self._itrncd)
-            logging.debug(f"Ran _fvs routine, itrncd is {self.itrncd}")
-            if self.restart_code != 0:
-                logging.debug("restart code not zero... halting run.")
-                break
+        self._state = FvsSimulationState.RUNNING
+        try:
+            self._run_cycles()
+            if self.restart_code == FvsRestartCode.DONE_RUNNING_STAND:
+                logging.debug("Stand complete; flushing output.")
+                self._fvs(self._itrncd)
+            self._state = FvsSimulationState.COMPLETE
+        except Exception:
+            self._state = FvsSimulationState.ERROR
+            raise
+
+    def run_batch(
+        self,
+        stop_point_code: int = 0,
+        stop_point_year: int = 0,
+    ) -> None:
+        """Advance FVS one stand's worth of cycles without auto-flushing.
+
+        Unlike :meth:`run`, this method does not follow a ``DONE_RUNNING_STAND``
+        restart code with a flush call. It simply returns once FVS either
+        pauses at a stop point or reports the stand-done marker, leaving
+        output finalization, stand-advance, and termination detection
+        (``itrncd == FvsItrnCode.FINISHED_ALL_STANDS``) in the caller's
+        hands. This is the low-level building block for driving multi-stand
+        keyfiles, where the caller typically loops::
+
+            fvs.load_keyfile(path, check_single_stand=False)
+            while fvs.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
+                fvs.run_batch()
+                # optionally inspect per-stand outputs here
+
+        Stop-point semantics are identical to :meth:`run`: pass non-zero
+        ``stop_point_code`` / ``stop_point_year`` to pause mid-cycle, then
+        call :meth:`run_batch` again to resume.
+
+        Args:
+            stop_point_code (optional, int): when FVS should stop during a
+                cycle. See :meth:`run` for the full list of values.
+            stop_point_year (optional, int): year(s) at which FVS should
+                stop. See :meth:`run` for the full list of values.
+
+        Raises:
+            AttributeError: If no keyfile has been loaded yet.
+            RuntimeError: If another run is already in progress on this
+                instance.
+        """
+        if self.keyfile is None:
+            msg = "No keyfile loaded yet."
+            raise AttributeError(msg)
+        if self._state == FvsSimulationState.RUNNING:
+            msg = "Simulation already in progress."
+            raise RuntimeError(msg)
+        self.set_stop_point_codes(stop_point_code, stop_point_year)
+        self._state = FvsSimulationState.RUNNING
+        try:
+            self._run_cycles()
+            self._state = FvsSimulationState.COMPLETE
+        except Exception:
+            self._state = FvsSimulationState.ERROR
+            raise
