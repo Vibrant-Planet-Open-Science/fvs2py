@@ -126,6 +126,30 @@ def test_invalid_stop_point_code(fvs, stop_point_code):
         assert fvs.stop_point_year == 0
 
 
+def test_stop_point_code_setter(fvs):
+    fvs.stop_point_code = FvsStopPointCode.AFTER_FIRST_EVMON
+    assert fvs.stop_point_code == FvsStopPointCode.AFTER_FIRST_EVMON
+    assert fvs.stop_point_year == 0
+
+
+def test_stop_point_year_setter(fvs):
+    fvs.stop_point_year = 2030
+    assert fvs.stop_point_code == 0
+    assert fvs.stop_point_year == 2030
+
+
+def test_stop_point_setters_preserve_prior_assignments(fvs):
+    fvs.stop_point_code = FvsStopPointCode.BEFORE_FIRST_EVMON
+    fvs.stop_point_year = 2025
+    assert fvs.stop_point_code == FvsStopPointCode.BEFORE_FIRST_EVMON
+    assert fvs.stop_point_year == 2025
+
+
+def test_stop_point_code_setter_validates(fvs):
+    with pytest.raises(ValueError, match="Invalid value for stop_point_code"):
+        fvs.stop_point_code = 99
+
+
 def test_run_with_keyfile_succeeds(fvs, keyfile):
     assert fvs.itrncd == FvsItrnCode.NOT_STARTED
 

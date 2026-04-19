@@ -9,6 +9,7 @@ import warnings
 from collections.abc import Callable
 from pathlib import Path
 
+from fvs2py.common import fvs_property
 from fvs2py.enums import FvsItrnCode, FvsStopPointCode
 from fvs2py.keyfile import validate_single_stand
 
@@ -34,7 +35,7 @@ class ControlMixin:
     itrncd: int
     _reload_fvs: Callable[[], None]
 
-    @property
+    @fvs_property
     def stop_point_code(self) -> int | None:
         """A code used to instruct FVS when to stop during a cycle.
 
@@ -50,22 +51,48 @@ class ControlMixin:
          7 : Stop just after input is read but before missing values are imputed
                 (tree heights and crown ratios, for example) and model
                 calibration (argument stptyr is ignored).
+
+        Assigning to this property delegates to :meth:`set_stop_point_codes`,
+        preserving the currently-configured ``stop_point_year`` (or ``0`` if
+        year has not been set).
         """
         if self._stop_point_code is not None:
             return self._stop_point_code.value
         return None
 
-    @property
+    @stop_point_code.setter  # type: ignore[no-redef]
+    def stop_point_code(self, value: int) -> None:
+        year = (
+            self._stop_point_year.value
+            if self._stop_point_year is not None
+            else 0
+        )
+        self.set_stop_point_codes(value, year)
+
+    @fvs_property
     def stop_point_year(self) -> int | None:
         """A code indicating which cycles FVS should stop at.
 
         0 : Never stop.
         1 : Stop at every cycle.
         YYYY : A specific year during the simulation period.
+
+        Assigning to this property delegates to :meth:`set_stop_point_codes`,
+        preserving the currently-configured ``stop_point_code`` (or ``0`` if
+        code has not been set).
         """
         if self._stop_point_year is not None:
             return self._stop_point_year.value
         return None
+
+    @stop_point_year.setter  # type: ignore[no-redef]
+    def stop_point_year(self, value: int) -> None:
+        code = (
+            self._stop_point_code.value
+            if self._stop_point_code is not None
+            else 0
+        )
+        self.set_stop_point_codes(code, value)
 
     def load_keyfile(
         self,

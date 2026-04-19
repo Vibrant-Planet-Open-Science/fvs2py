@@ -70,28 +70,76 @@ def function_requires_fvs_library() -> Callable[
     return decorator
 
 
-def fvs_property(func: Callable[..., T]) -> property:
-    """A property decorator that checks if the FVS library is loaded before accessing.
+class fvs_property:
+    """Property descriptor with an FVS-library-loaded guard.
 
-    This combines @property with a check for self._lib. This decorator will help ensure
-    that the FVS library is loaded before accessing the property. If the FVS library
-    has been unloaded without this protection, a segmentation fault would occur.
+    Behaves like the built-in :class:`property`, but before invoking either the
+    getter or the setter it checks that the instance has a non-``None`` ``_lib``
+    attribute and raises :class:`RuntimeError` otherwise. Guarding here prevents
+    the segmentation fault that would result from calling into an unloaded FVS
+    shared library.
+
+    Supports the standard ``@<name>.setter`` fluent syntax, mirroring the
+    stdlib :class:`property`. Setters receive the same ``_lib``-loaded guard
+    as getters.
 
     Args:
-        func: The property getter function to wrap.
-
-    Returns:
-        A property descriptor with FVS library checking.
+        fget: Getter function taking ``self`` and returning the property
+            value.
+        fset: Optional setter function taking ``self`` and the new value.
     """
 
-    @functools.wraps(func)
-    def wrapper(self) -> T:
-        if not hasattr(self, "_lib") or self._lib is None:
-            msg = f"FVS library not loaded, unable to access {func.__name__} property."
-            raise RuntimeError(msg)
-        return func(self)
+    def __init__(
+        self,
+        fget: Callable[[Any], Any] | None = None,
+        fset: Callable[[Any, Any], None] | None = None,
+    ) -> None:
+        self.fget = fget
+        self.fset = fset
+        self.__doc__ = fget.__doc__ if fget is not None else None
+        self.__name__ = fget.__name__ if fget is not None else ""
 
-    return property(wrapper)
+    def _check_lib(self, obj: Any, action: str) -> None:
+        """Raise if ``obj._lib`` is missing or ``None``."""
+        if not hasattr(obj, "_lib") or obj._lib is None:
+            msg = (
+                f"FVS library not loaded, unable to "
+                f"{action} {self.__name__} property."
+            )
+            raise RuntimeError(msg)
+
+    def __get__(self, obj: Any, objtype: type | None = None) -> Any:
+        """Invoke the wrapped getter after verifying the library is loaded."""
+        if obj is None:
+            return self
+        if self.fget is None:
+            msg = f"property {self.__name__!r} has no getter"
+            raise AttributeError(msg)
+        self._check_lib(obj, "access")
+        return self.fget(obj)
+
+    def __set__(self, obj: Any, value: Any) -> None:
+        """Invoke the wrapped setter after verifying the library is loaded."""
+        if self.fset is None:
+            msg = f"property {self.__name__!r} has no setter"
+            raise AttributeError(msg)
+        self._check_lib(obj, "set")
+        self.fset(obj, value)
+
+    def setter(self, fset: Callable[[Any, Any], None]) -> fvs_property:
+        """Return a new :class:`fvs_property` combining ``self.fget`` with ``fset``.
+
+        Supports the ``@<name>.setter`` fluent syntax used with the stdlib
+        :class:`property`.
+
+        Args:
+            fset: Setter function taking ``self`` and a new value.
+
+        Returns:
+            A new :class:`fvs_property` sharing this descriptor's getter and
+            using ``fset`` as its setter.
+        """
+        return type(self)(self.fget, fset)
 
 
 def no_fvs_library_required(func: Callable[P, T]) -> Callable[P, T]:
