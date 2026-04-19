@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 
+from fvs2py._signatures import FVS_SIGNATURES
 from fvs2py.common import load_dll, unload_dll
 from fvs2py.constants import NEEDED_ROUTINES
 
@@ -12,11 +13,21 @@ from fvs2py.constants import NEEDED_ROUTINES
 class FvsCore:
     """Base class for FVS API wrapper."""
 
-    def __init__(self, lib_path: str | os.PathLike):
-        """Loads FVS shared library and checks to ensure needed routines exist.
+    def __init__(self, lib_path: str | os.PathLike) -> None:
+        """Load the FVS shared library and bind its needed routines.
+
+        Resolves each routine in :data:`NEEDED_ROUTINES` from the loaded
+        library, tolerating both the unix-style ``name_`` mangling and the
+        un-mangled ``name`` spelling, then applies any static ctypes
+        signature declared in :data:`FVS_SIGNATURES` so call sites no longer
+        need to reassign ``argtypes``/``restype`` on each invocation.
 
         Args:
-          lib_path : path to FVS library
+            lib_path: Path to the FVS shared library.
+
+        Raises:
+            ImportError: If one or more routines in :data:`NEEDED_ROUTINES`
+                are not present or not callable on the loaded library.
         """
         self.lib_path: Path = Path(os.path.abspath(lib_path))
         self._lib: ct.CDLL | None = None
@@ -27,8 +38,8 @@ class FvsCore:
             .upper()
         )
 
-        # Declare function attributes with type annotations for mypy
-        # These are ctypes foreign function pointers loaded from the shared library
+        # Declare function attributes with type annotations for mypy.
+        # These are ctypes foreign function pointers loaded from the shared library.
         self._fvs: ct._FuncPointer
         self._fvsAddActivity: ct._FuncPointer
         self._fvsAddTrees: ct._FuncPointer
@@ -52,24 +63,40 @@ class FvsCore:
         self._load_fvs()
         assert self._lib is not None  # to satisfy type checker
 
-        # check for needed routines that are missing
-        missing = []
+        self._resolve_routines()
 
-        for routine in NEEDED_ROUTINES:
-            if hasattr(self._lib, routine) and callable(
-                getattr(self._lib, routine)
-            ):
-                logging.debug(f"Found {routine} as expected.")
-                # anticipate subroutine name changes depending upon compiler and OS
-                # unix pattern on fortran functions
-            elif hasattr(self._lib, f"{routine.lower()}_") and callable(
-                getattr(self._lib, f"{routine.lower()}_")
-            ):
-                logging.debug(f"Found {routine} renamed as {routine.lower()}_.")
-            else:
-                missing.append(routine)
+    def _resolve_routines(self) -> None:
+        """Bind each needed FVS routine to ``self`` and apply its signature.
 
-        if len(missing) > 0:
+        For every name in :data:`NEEDED_ROUTINES`, look up the corresponding
+        foreign function on ``self._lib`` (trying the ``name_`` mangling
+        first, then the un-mangled name), assign the resolved function to
+        ``self._<name>``, and apply any signature declared in
+        :data:`FVS_SIGNATURES`.
+
+        Raises:
+            ImportError: If any needed routines are missing or not callable.
+        """
+        assert self._lib is not None  # to satisfy type checker
+        missing: list[str] = []
+        for name in NEEDED_ROUTINES:
+            func: ct._FuncPointer | None = None
+            for candidate in (f"{name.lower()}_", name):
+                attr = getattr(self._lib, candidate, None)
+                if attr is not None and callable(attr):
+                    func = attr
+                    logging.debug(f"Found {name} as {candidate}.")
+                    break
+            if func is None:
+                missing.append(name)
+                continue
+            sig = FVS_SIGNATURES.get(name)
+            if sig is not None:
+                func.argtypes = sig.argtypes
+                func.restype = sig.restype
+            setattr(self, f"_{name}", func)
+
+        if missing:
             msg = " ".join(
                 [
                     ", ".join(missing),
@@ -78,60 +105,18 @@ class FvsCore:
                 ]
             )
             raise ImportError(msg)
-        try:
-            self._fvs = self._lib.fvs_
-            self._fvsAddActivity = self._lib.fvsaddactivity_
-            self._fvsAddTrees = self._lib.fvsaddtrees_
-            self._fvsDimSizes = self._lib.fvsdimsizes_
-            self._fvsEvmonAttr = self._lib.fvsevmonattr_
-            self._fvsFFEAttrs = self._lib.fvsffeattrs_
-            self._fvsGetRestartCode = self._lib.fvsgetrestartcode_
-            self._fvsGetRtnCode = self._lib.fvsgetrtncode_
-            self._fvsGetICCode = self._lib.fvsgeticcode_
-            self._fvsSVSDimSizes = self._lib.fvssvsdimsizes_
-            self._fvsSetStoppointCodes = self._lib.fvssetstoppointcodes_
-            self._fvsSetCmdLine = self._lib.fvssetcmdline_
-            self._fvsSVSObjData = self._lib.fvssvsobjdata_
-            self._fvsSpeciesAttr = self._lib.fvsspeciesattr_
-            self._fvsSpeciesCode = self._lib.fvsspeciescode_
-            self._fvsStandID = self._lib.fvsstandid_
-            self._fvsSummary = self._lib.fvssummary_
-            self._fvsTreeAttr = self._lib.fvstreeattr_
-            self._fvsUnitConversion = self._lib.fvsunitconversion_
-        except AttributeError:
-            self._fvs = self._lib.fvs
-            self._fvsAddActivity = self._lib.fvsAddActivity
-            self._fvsAddTrees = self._lib.fvsAddTrees
-            self._fvsDimSizes = self._lib.fvsDimSizes
-            self._fvsEvmonAttr = self._lib.fvsEvmonAttr
-            self._fvsFFEAttrs = self._lib.fvsFFEAttrs
-            self._fvsGetRestartCode = self._lib.fvsGetRestartCode
-            self._fvsGetRtnCode = self._lib.fvsGetRtnCode
-            self._fvsGetICCode = self._lib.fvsGetICCode
-            self._fvsSVSDimSizes = self._lib.fvsSVSDimSizes
-            self._fvsSetStoppointCodes = self._lib.fvsSetStoppointCodes
-            self._fvsSetCmdLine = self._lib.fvsSetCmdLine
-            self._fvsSVSObjData = self._lib.fvsSVSObjData
-            self._fvsSpeciesAttr = self._lib.fvsSpeciesAttr
-            self._fvsSpeciesCode = self._lib.fvsSpeciesCode
-            self._fvsStandID = self._lib.fvsStandID
-            self._fvsSummary = self._lib.fvsSummary
-            self._fvsTreeAttr = self._lib.fvsTreeAttr
-            self._fvsUnitConversion = self._lib.fvsUnitConversion
-
-        return
 
     def _load_fvs(self) -> None:
+        """Load the FVS shared library into ``self._lib``, unloading any prior handle."""
         if self._lib:
             logging.debug("Unloading existing library.")
             self._unload_fvs()
         self._lib = load_dll(self.lib_path)
-        return
 
     def _unload_fvs(self) -> None:
+        """Unload the currently held FVS shared library, if any."""
         if self._lib:
             unload_dll(self._lib)
             self._lib = None
         else:
             logging.debug("No library to unload.")
-        return

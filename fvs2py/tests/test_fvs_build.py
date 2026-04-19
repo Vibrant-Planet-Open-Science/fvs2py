@@ -42,7 +42,7 @@ def test_fvs_build(variant: FvsVariant, tmp_path: Path):
     with open(keyfile, "w") as f:
         f.write(keyfile_content)
     outfile = f"{tmp_path}/{variant}_buildtest.out"
-    proc = subprocess.run([fvs, f"--keywordfile={keyfile}"])
+    proc = subprocess.run([fvs, f"--keywordfile={keyfile}"], cwd=tmp_path)
 
     assert os.path.exists(keyfile)
     assert os.path.exists(outfile)
