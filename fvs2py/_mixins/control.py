@@ -11,11 +11,6 @@ from pathlib import Path
 
 from fvs2py.enums import FvsItrnCode, FvsStopPointCode
 
-_VALID_STOP_POINT_CODES: frozenset[int] = frozenset(
-    code.value for code in FvsStopPointCode
-)
-"""Integer values accepted by ``fvsSetStoppointCodes`` (mirrors :class:`FvsStopPointCode`)."""
-
 
 class ControlMixin:
     """Expose keyfile loading and stop-point configuration.
@@ -128,11 +123,12 @@ class ControlMixin:
                 or if ``stop_point_year`` is provided without ``stop_point_code``.
         """
         if stop_point_code is not None:
-            if stop_point_code in _VALID_STOP_POINT_CODES:
-                self._stop_point_code = ct.c_int(stop_point_code)
-            else:
+            try:
+                FvsStopPointCode(stop_point_code)
+            except ValueError as e:
                 msg = "Invalid value for stop_point_code"
-                raise ValueError(msg)
+                raise ValueError(msg) from e
+            self._stop_point_code = ct.c_int(stop_point_code)
         elif self._stop_point_code is None:
             self._stop_point_code = ct.c_int(0)
 

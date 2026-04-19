@@ -115,8 +115,9 @@ def test_invalid_stop_point_code(fvs, stop_point_code):
     assert fvs.stop_point_code is None
     assert fvs.stop_point_year is None
     match_msg = "Invalid value for stop_point_code"
-    valid_codes = {c.value for c in FvsStopPointCode}
-    if stop_point_code not in valid_codes:
+    try:
+        FvsStopPointCode(stop_point_code)
+    except ValueError:
         with pytest.raises(ValueError, match=match_msg):
             fvs.set_stop_point_codes(stop_point_code, 0)
     else:
