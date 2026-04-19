@@ -7,9 +7,6 @@ import pytest
 
 from fvs2py._base import FVS
 from fvs2py.constants import (
-    FVS_ITRNCD_FINISHED_ALL_STANDS,
-    FVS_ITRNCD_GOOD_RUNNING_STATE,
-    FVS_ITRNCD_NOT_STARTED,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     SPECIES_COLUMN_NAMES,
@@ -20,19 +17,18 @@ from fvs2py.constants import (
     STR_NTREES,
     SUMMARY_COLS,
 )
-from fvs2py.enums import FvsVariant
+from fvs2py.enums import (
+    FvsExitCode,
+    FvsItrnCode,
+    FvsRestartCode,
+    FvsStopPointCode,
+    FvsVariant,
+)
 
 TEST_DLL = "/usr/local/lib/FVSso.so"
 TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
     "SO.key"
 )
-FVS_RESTART_CODE_DONE_RUNNING_STAND = 100
-FVS_RESTART_CODE_INITIALIZED = 0
-FVS_STOP_POINT_CODE_AFTER_FIRST_EVMON = 2
-
-FVS_EXIT_CODE_INPUT_DATA_ERROR = 1
-FVS_EXIT_CODE_KEYWORD_ERROR = 2
-FVS_EXIT_CODE_NO_ERROR = 0
 
 FVSSO_START_DIMS = {
     "ntrees": 0,
@@ -84,12 +80,12 @@ def keyfile(tmp_path):
 
 def test_load_keyfile(fvs, keyfile):
     """Checks that keyfile attributes get populated and itrncd updates."""
-    assert fvs.itrncd == FVS_ITRNCD_NOT_STARTED
+    assert fvs.itrncd == FvsItrnCode.NOT_STARTED
     assert fvs.keyfile is None
     assert fvs.keyfile_path is None
 
     fvs.load_keyfile(keyfile)
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     assert fvs.keyfile_path == keyfile
     assert fvs.keyfile == keyfile.read_text()
 
@@ -119,7 +115,8 @@ def test_invalid_stop_point_code(fvs, stop_point_code):
     assert fvs.stop_point_code is None
     assert fvs.stop_point_year is None
     match_msg = "Invalid value for stop_point_code"
-    if stop_point_code not in range(-1, 8):
+    valid_codes = {c.value for c in FvsStopPointCode}
+    if stop_point_code not in valid_codes:
         with pytest.raises(ValueError, match=match_msg):
             fvs.set_stop_point_codes(stop_point_code, 0)
     else:
@@ -129,15 +126,15 @@ def test_invalid_stop_point_code(fvs, stop_point_code):
 
 
 def test_run_with_keyfile_succeeds(fvs, keyfile):
-    assert fvs.itrncd == FVS_ITRNCD_NOT_STARTED
+    assert fvs.itrncd == FvsItrnCode.NOT_STARTED
 
     fvs.load_keyfile(keyfile)
-    assert fvs.restart_code == FVS_RESTART_CODE_INITIALIZED
+    assert fvs.restart_code == FvsRestartCode.INITIALIZED
     fvs.run()
-    assert fvs.restart_code == FVS_RESTART_CODE_DONE_RUNNING_STAND
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.restart_code == FvsRestartCode.DONE_RUNNING_STAND
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.run()
-    assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
+    assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
 
     assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
 
@@ -148,24 +145,24 @@ def test_run_without_keyfile_raises(fvs):
 
 
 def test_restart_codes_match_stop_point_codes(fvs, keyfile):
-    assert fvs.itrncd == FVS_ITRNCD_NOT_STARTED
+    assert fvs.itrncd == FvsItrnCode.NOT_STARTED
     assert fvs.stop_point_code is None
     assert fvs.stop_point_year is None
-    assert fvs.restart_code == FVS_RESTART_CODE_INITIALIZED
+    assert fvs.restart_code == FvsRestartCode.INITIALIZED
 
     fvs.load_keyfile(keyfile)
-    assert fvs.restart_code == FVS_RESTART_CODE_INITIALIZED
+    assert fvs.restart_code == FvsRestartCode.INITIALIZED
     fvs.run(
-        stop_point_code=FVS_STOP_POINT_CODE_AFTER_FIRST_EVMON,
+        stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON,
         stop_point_year=2010,
     )
-    assert fvs.restart_code == FVS_STOP_POINT_CODE_AFTER_FIRST_EVMON
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.restart_code == FvsRestartCode.AFTER_FIRST_EVMON
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.run()
-    assert fvs.restart_code == FVS_RESTART_CODE_DONE_RUNNING_STAND
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.restart_code == FvsRestartCode.DONE_RUNNING_STAND
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.run()
-    assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
+    assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
 
 
@@ -177,7 +174,7 @@ def test_exit_code_valid_run(fvs, keyfile):
 
 
 def test_exit_code_keyword_error(fvs, keyfile):
-    assert fvs.exit_code == FVS_EXIT_CODE_NO_ERROR
+    assert fvs.exit_code == FvsExitCode.NO_ERROR
     keyfile_content = keyfile.read_text()
 
     with open(keyfile, "w") as f:
@@ -185,17 +182,17 @@ def test_exit_code_keyword_error(fvs, keyfile):
 
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.exit_code == FVS_EXIT_CODE_KEYWORD_ERROR
+    assert fvs.exit_code == FvsExitCode.KEYWORD_ERROR
 
 
 def test_exit_code_input_data_error(fvs, keyfile):
-    assert fvs.exit_code == FVS_EXIT_CODE_NO_ERROR
+    assert fvs.exit_code == FvsExitCode.NO_ERROR
     keyfile_content = keyfile.read_text()
     with open(keyfile, "w") as f:
         f.write(keyfile_content.replace("CDS612", "ABCDEF"))
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.exit_code == FVS_EXIT_CODE_INPUT_DATA_ERROR
+    assert fvs.exit_code == FvsExitCode.INPUT_DATA_ERROR
 
 
 def test_dims(keyfile):
@@ -312,21 +309,21 @@ def test_species_attr_get_set(fvs, keyfile):
 def test_reload_fvs(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs._reload_fvs()
-    assert fvs.itrncd == FVS_ITRNCD_NOT_STARTED
+    assert fvs.itrncd == FvsItrnCode.NOT_STARTED
 
 
 def test_load_keyfile_after_run(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     assert fvs.summary is not None  # results of first run exist
     fvs.run()  # conclude the run
-    assert fvs.itrncd == FVS_ITRNCD_FINISHED_ALL_STANDS
+    assert fvs.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     assert fvs.summary is not None  # results of first run exist
     fvs.load_keyfile(keyfile)
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     assert fvs.summary is None  # results of first run were cleared
 
 
@@ -351,7 +348,7 @@ def test_keyfile_reload_warning(fvs, keyfile, recwarn):
     # check that warning is raised if keyfile is loaded after the run
     fvs.load_keyfile(keyfile)
     fvs.run()
-    assert fvs.itrncd == FVS_ITRNCD_GOOD_RUNNING_STATE
+    assert fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE
     fvs.load_keyfile(keyfile)
     assert len(recwarn) == 1
     w = recwarn.pop(UserWarning)

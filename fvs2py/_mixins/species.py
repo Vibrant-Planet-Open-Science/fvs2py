@@ -15,7 +15,7 @@ from fvs2py.constants import (
     STR_C_CONTIGUOUS,
     STR_MAXSPECIES,
 )
-from fvs2py.enums import FvsAttributeAccessor
+from fvs2py.enums import FvsAttributeAccessor, FvsAttrReturnCode
 
 
 class SpeciesMixin:
@@ -204,14 +204,8 @@ class SpeciesMixin:
             self._species_attrs[attr],  # array to fill
             rtncode,  # return code of setting/getting operation
         )
-        ERRS = {
-            0: "OK",
-            1: "name not found",
-            4: "length of name string was too large or small",
-        }
-
-        if rtncode.value != 0:
-            if rtncode.value == 1:
+        if rtncode.value != FvsAttrReturnCode.OK:
+            if rtncode.value == FvsAttrReturnCode.NAME_NOT_FOUND:
                 msg = f"{attr} not found among species attributes"
                 raise NameError(msg)
-            raise RuntimeError(ERRS[rtncode.value])
+            raise RuntimeError(FvsAttrReturnCode(rtncode.value).message)  # type: ignore[call-arg]

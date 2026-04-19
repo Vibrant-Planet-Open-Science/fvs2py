@@ -9,10 +9,12 @@ import warnings
 from collections.abc import Callable
 from pathlib import Path
 
-from fvs2py.constants import (
-    FVS_ITRNCD_FINISHED_ALL_STANDS,
-    FVS_ITRNCD_NOT_STARTED,
+from fvs2py.enums import FvsItrnCode, FvsStopPointCode
+
+_VALID_STOP_POINT_CODES: frozenset[int] = frozenset(
+    code.value for code in FvsStopPointCode
 )
+"""Integer values accepted by ``fvsSetStoppointCodes`` (mirrors :class:`FvsStopPointCode`)."""
 
 
 class ControlMixin:
@@ -75,8 +77,8 @@ class ControlMixin:
         Args:
           keywordfile (str | os.PathLike): path to the FVS keyword file
         """
-        if self.itrncd != FVS_ITRNCD_NOT_STARTED:
-            if self.itrncd != FVS_ITRNCD_FINISHED_ALL_STANDS:
+        if self.itrncd != FvsItrnCode.NOT_STARTED:
+            if self.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
                 msg = (
                     "FVS had not completed the previous simulation. "
                     "Outputs from that simulation may be incomplete."
@@ -126,7 +128,7 @@ class ControlMixin:
                 or if ``stop_point_year`` is provided without ``stop_point_code``.
         """
         if stop_point_code is not None:
-            if stop_point_code in range(-1, 8):
+            if stop_point_code in _VALID_STOP_POINT_CODES:
                 self._stop_point_code = ct.c_int(stop_point_code)
             else:
                 msg = "Invalid value for stop_point_code"

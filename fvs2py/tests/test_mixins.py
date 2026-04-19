@@ -19,7 +19,6 @@ from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
-    FVS_ITRNCD_NOT_STARTED,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     STAND_CN_COLUMN_NAME,
@@ -32,7 +31,7 @@ from fvs2py.constants import (
     STR_NPLOTS,
     STR_NTREES,
 )
-from fvs2py.enums import FvsAttributeAccessor
+from fvs2py.enums import FvsAttributeAccessor, FvsItrnCode
 
 
 class _StubLib:
@@ -170,7 +169,7 @@ def test_simulation_mixin_run_without_keyfile_raises():
 class _ControlStub(ControlMixin):
     def __init__(self):
         self._lib = _StubLib()
-        self._itrncd = ct.c_int(FVS_ITRNCD_NOT_STARTED)
+        self._itrncd = ct.c_int(FvsItrnCode.NOT_STARTED)
         self._stop_point_code = None
         self._stop_point_year = None
         self._fvsSetStoppointCodes = lambda *_args: None
