@@ -94,16 +94,67 @@ def fvs_property(func: Callable[..., T]) -> property:
     return property(wrapper)
 
 
+def no_fvs_library_required(func: Callable[P, T]) -> Callable[P, T]:
+    """Mark a method so `class_requires_fvs_library` leaves it unwrapped.
+
+    Use this to opt a pure-Python helper out of the automatic ``_lib``-loaded
+    guard applied by :func:`class_requires_fvs_library`. The marker is read
+    from the underlying function object during class decoration.
+
+    Args:
+        func: Instance method to leave unguarded.
+
+    Returns:
+        The same function object with a ``_fvs_library_required`` attribute set
+        to ``False``.
+    """
+    func._fvs_library_required = False  # type: ignore[attr-defined]
+    return func
+
+
 def class_requires_fvs_library(cls: ClassT) -> ClassT:
     """Decorator enforcing `function_requires_fvs_library` for all public methods.
 
-    This decorator applies the `function_requires_fvs_library` decorator to all public
-    methods of the class.
+    Walks ``cls.__mro__`` so that public methods contributed by mixins receive
+    the same ``_lib``-loaded guard that methods defined directly on ``cls``
+    get. The first occurrence of each public name wins (respecting MRO), so
+    overrides on ``cls`` are not shadowed by same-named methods on a base.
+
+    Skips:
+      - names that start with ``_`` (private / dunder).
+      - non-callables (e.g. ``property`` descriptors, which are expected to
+        carry their own guard via :func:`fvs_property`).
+      - ``staticmethod`` / ``classmethod`` descriptors — they have no ``self``
+        to inspect and their own guard would have to be different.
+      - methods marked with :func:`no_fvs_library_required`.
+      - methods already wrapped by a previous call (idempotent).
+
+    Args:
+        cls: The class to decorate.
+
+    Returns:
+        The same class, with public methods replaced by ``_lib``-guarded
+        wrappers.
     """
-    for name, method in cls.__dict__.items():
-        if callable(method) and not name.startswith("_"):
-            decorated_method = function_requires_fvs_library()(method)
-            setattr(cls, name, decorated_method)
+    wrapped_names: set[str] = set()
+    for base in cls.__mro__:
+        if base is object:
+            continue
+        for name, method in vars(base).items():
+            if name in wrapped_names:
+                continue
+            if name.startswith("_") or not callable(method):
+                continue
+            if isinstance(method, (staticmethod, classmethod)):
+                continue
+            if getattr(method, "_fvs_library_required", True) is False:
+                continue
+            if getattr(method, "_fvs_wrapped", False):
+                continue
+            wrapped = function_requires_fvs_library()(method)
+            wrapped._fvs_wrapped = True  # type: ignore[attr-defined]
+            setattr(cls, name, wrapped)
+            wrapped_names.add(name)
     return cls
 
 

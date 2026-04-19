@@ -1,0 +1,149 @@
+"""Keyfile-loading and stop-point control mixin."""
+
+from __future__ import annotations
+
+import ctypes as ct
+import logging
+import os
+import warnings
+from collections.abc import Callable
+from pathlib import Path
+
+from fvs2py.constants import (
+    FVS_ITRNCD_FINISHED_ALL_STANDS,
+    FVS_ITRNCD_NOT_STARTED,
+)
+
+
+class ControlMixin:
+    """Expose keyfile loading and stop-point configuration.
+
+    Assumes the composed class provides ``_fvsSetCmdLine`` and
+    ``_fvsSetStoppointCodes`` (resolved by :class:`fvs2py._core.FvsCore`),
+    the ``_itrncd`` buffer, and the ``_stop_point_code``/``_stop_point_year``
+    slots initialized by ``FVS._initialize_attributes``. :meth:`run` on
+    :class:`SimulationMixin` is expected to call into
+    :meth:`set_stop_point_codes`.
+    """
+
+    _fvsSetCmdLine: ct._FuncPointer
+    _fvsSetStoppointCodes: ct._FuncPointer
+    _itrncd: ct.c_int
+    _stop_point_code: ct.c_int | None
+    _stop_point_year: ct.c_int | None
+    keyfile_path: Path | None
+    keyfile: str | None
+    itrncd: int
+    _reload_fvs: Callable[[], None]
+
+    @property
+    def stop_point_code(self) -> int | None:
+        """A code used to instruct FVS when to stop during a cycle.
+
+        -1 : Stop at every stop location.
+         0 : Never stop.
+         1 : Stop just before the first call to the Event Monitor.
+         2 : Stop just after the first call to the Event Monitor.
+         3 : Stop just before the second call to the Event Monitor.
+         4 : Stop just after the second call to the Event Monitor.
+         5 : Stop after growth and mortality has been computed, but prior to
+                applying them.
+         6 : Stop just before the ESTAB routines are called.
+         7 : Stop just after input is read but before missing values are imputed
+                (tree heights and crown ratios, for example) and model
+                calibration (argument stptyr is ignored).
+        """
+        if self._stop_point_code is not None:
+            return self._stop_point_code.value
+        return None
+
+    @property
+    def stop_point_year(self) -> int | None:
+        """A code indicating which cycles FVS should stop at.
+
+        0 : Never stop.
+        1 : Stop at every cycle.
+        YYYY : A specific year during the simulation period.
+        """
+        if self._stop_point_year is not None:
+            return self._stop_point_year.value
+        return None
+
+    def load_keyfile(self, keywordfile: str | os.PathLike) -> None:
+        """Sets the keywordfile as a command line argument to FVS.
+
+        Args:
+          keywordfile (str | os.PathLike): path to the FVS keyword file
+        """
+        if self.itrncd != FVS_ITRNCD_NOT_STARTED:
+            if self.itrncd != FVS_ITRNCD_FINISHED_ALL_STANDS:
+                msg = (
+                    "FVS had not completed the previous simulation. "
+                    "Outputs from that simulation may be incomplete."
+                )
+                warnings.warn(msg)
+            logging.debug("FVS was already started. Resetting.")
+            self._reload_fvs()
+
+        self.keyfile_path = Path(os.path.abspath(keywordfile))
+        with open(self.keyfile_path) as f:
+            self.keyfile = f.read()
+
+        cmdline = f"--keywordfile={self.keyfile_path}"
+        nch = len(cmdline)
+
+        self._fvsSetCmdLine(cmdline.encode(), ct.c_int(nch), self._itrncd)
+        logging.debug(f"Return code updated to {self.itrncd}")
+
+    def set_stop_point_codes(
+        self,
+        stop_point_code: int | None = None,
+        stop_point_year: int | None = None,
+    ) -> None:
+        """Sets FVS stop point codes.
+
+        Args:
+            stop_point_code (int): Optional code for when FVS should stop during
+                a cycle:
+               -1 : Stop at every stop location
+                0 : Never stop
+                1 : Stop just before the first call to the Event Monitor
+                2 : Stop just after the first call to the Event Monitor
+                3 : Stop just before the second call to the Event Monitor
+                4 : Stop just after the second call to the Event Monitor
+                5 : Stop after growth and mortality has been computed, but
+                        prior to applying them
+                6 : Stop just before the ESTAB routines are called
+                7 : Stop just after input is read but before missing values
+                        are imputed
+            stop_point_year (int): Optional, years FVS should stop, options are:
+                0 : Never stop
+               -1 : Stop at every cycle
+               YYYY : A specific year during the simulation period
+
+        Raises:
+            ValueError: If ``stop_point_code`` is outside the range ``[-1, 7]``,
+                or if ``stop_point_year`` is provided without ``stop_point_code``.
+        """
+        if stop_point_code is not None:
+            if stop_point_code in range(-1, 8):
+                self._stop_point_code = ct.c_int(stop_point_code)
+            else:
+                msg = "Invalid value for stop_point_code"
+                raise ValueError(msg)
+        elif self._stop_point_code is None:
+            self._stop_point_code = ct.c_int(0)
+
+        if stop_point_year is not None:
+            if stop_point_code is not None:
+                self._stop_point_year = ct.c_int(stop_point_year)
+            else:
+                msg = (
+                    "Must specify stop_point_year if also specifying "
+                    "stop_point_code"
+                )
+                raise ValueError(msg)
+        elif self._stop_point_year is None:
+            self._stop_point_year = ct.c_int(0)
+
+        self._fvsSetStoppointCodes(self._stop_point_code, self._stop_point_year)
