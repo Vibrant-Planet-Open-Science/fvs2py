@@ -9,10 +9,7 @@ import warnings
 from collections.abc import Callable
 from pathlib import Path
 
-from fvs2py.constants import (
-    FVS_ITRNCD_FINISHED_ALL_STANDS,
-    FVS_ITRNCD_NOT_STARTED,
-)
+from fvs2py.enums import FvsItrnCode, FvsStopPointCode
 
 
 class ControlMixin:
@@ -75,8 +72,8 @@ class ControlMixin:
         Args:
           keywordfile (str | os.PathLike): path to the FVS keyword file
         """
-        if self.itrncd != FVS_ITRNCD_NOT_STARTED:
-            if self.itrncd != FVS_ITRNCD_FINISHED_ALL_STANDS:
+        if self.itrncd != FvsItrnCode.NOT_STARTED:
+            if self.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
                 msg = (
                     "FVS had not completed the previous simulation. "
                     "Outputs from that simulation may be incomplete."
@@ -126,11 +123,12 @@ class ControlMixin:
                 or if ``stop_point_year`` is provided without ``stop_point_code``.
         """
         if stop_point_code is not None:
-            if stop_point_code in range(-1, 8):
-                self._stop_point_code = ct.c_int(stop_point_code)
-            else:
+            try:
+                FvsStopPointCode(stop_point_code)
+            except ValueError as e:
                 msg = "Invalid value for stop_point_code"
-                raise ValueError(msg)
+                raise ValueError(msg) from e
+            self._stop_point_code = ct.c_int(stop_point_code)
         elif self._stop_point_code is None:
             self._stop_point_code = ct.c_int(0)
 

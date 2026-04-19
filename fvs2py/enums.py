@@ -1,4 +1,15 @@
-from enum import StrEnum
+"""Symbolic names for FVS integer status codes and string accessors.
+
+All status-code enums are :class:`IntEnum` subclasses, so their members compare
+equal to the corresponding raw integers returned/accepted by FVS. This keeps
+call-site ergonomics unchanged (``fvs.itrncd == FvsItrnCode.NOT_STARTED`` works
+alongside ``fvs.itrncd == -1``) while giving callers readable constants.
+"""
+
+from __future__ import annotations
+
+from enum import IntEnum, StrEnum
+from typing import Self
 
 
 class FvsVariant(StrEnum):
@@ -35,3 +46,87 @@ class FvsAttributeAccessor(StrEnum):
 
     GET = "get"
     SET = "set"
+
+
+class FvsItrnCode(IntEnum):
+    """Return-code values reported by ``fvsGetRtnCode`` / :attr:`FVS.itrncd`."""
+
+    NOT_STARTED = -1
+    GOOD_RUNNING_STATE = 0
+    ERROR = 1
+    FINISHED_ALL_STANDS = 2
+
+
+class FvsExitCode(IntEnum):
+    """Exit-code values reported by ``fvsGetICCode`` / :attr:`FVS.exit_code`."""
+
+    NO_ERROR = 0
+    INPUT_DATA_ERROR = 1
+    KEYWORD_ERROR = 2
+    EXTENSION_OR_GROUP_ACTIVITIES_ERROR = 3
+    SCRATCH_FILE_ERROR = 4
+
+
+class FvsRestartCode(IntEnum):
+    """Restart-code values reported by ``fvsGetRestartCode``.
+
+    Indicates where inside a cycle FVS stopped after the most recent call to
+    :meth:`FVS.run`.
+    """
+
+    INITIALIZED = 0
+    BEFORE_FIRST_EVMON = 1
+    AFTER_FIRST_EVMON = 2
+    BEFORE_SECOND_EVMON = 3
+    AFTER_SECOND_EVMON = 4
+    AFTER_GROWTH_AND_MORTALITY = 5
+    BEFORE_ESTAB = 6
+    DONE_RUNNING_STAND = 100
+
+
+class FvsStopPointCode(IntEnum):
+    """Stop-point-code values accepted by ``fvsSetStoppointCodes``.
+
+    Selects where inside a cycle FVS should pause during :meth:`FVS.run`.
+    """
+
+    EVERY_STOP_LOCATION = -1
+    NEVER_STOP = 0
+    BEFORE_FIRST_EVMON = 1
+    AFTER_FIRST_EVMON = 2
+    BEFORE_SECOND_EVMON = 3
+    AFTER_SECOND_EVMON = 4
+    AFTER_GROWTH_AND_MORTALITY = 5
+    BEFORE_ESTAB = 6
+    AFTER_INPUT_BEFORE_IMPUTE = 7
+
+
+class FvsAttrReturnCode(IntEnum):
+    """Return-code values reported by attribute-accessor FVS routines.
+
+    Produced by ``fvsSpeciesAttr`` (and sibling routines with the same
+    convention) in the trailing ``rtncode`` parameter. Each member carries a
+    ``message`` attribute describing the condition, suitable for use in an
+    error message.
+    """
+
+    message: str
+
+    OK = 0, "OK"
+    NAME_NOT_FOUND = 1, "name not found"
+    NAME_LENGTH_INVALID = 4, "length of name string was too large or small"
+
+    def __new__(cls, value: int, message: str) -> Self:
+        """Construct a member that carries both the int value and a message.
+
+        Args:
+            value: Integer value reported by FVS.
+            message: Human-readable description of the return code.
+
+        Returns:
+            A new :class:`FvsAttrReturnCode` member with ``message`` attached.
+        """
+        obj = int.__new__(cls, value)
+        obj._value_ = value
+        obj.message = message
+        return obj
