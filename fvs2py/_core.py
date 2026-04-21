@@ -4,7 +4,9 @@ import ctypes as ct
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
+from fvs2py._routines import FVS_ROUTINES
 from fvs2py._signatures import FVS_SIGNATURES
 from fvs2py.common import load_dll, unload_dll
 from fvs2py.constants import NEEDED_ROUTINES
@@ -105,6 +107,42 @@ class FvsCore:
                 ]
             )
             raise ImportError(msg)
+
+    def _invoke(self, name: str, /, **kwargs: Any) -> Any:
+        """Dispatch a call to a registered FVS routine.
+
+        Looks up ``name`` in :data:`fvs2py._routines.FVS_ROUTINES`, resolves
+        the bound foreign function at ``self._<name>``, and hands off to
+        :meth:`fvs2py._routines.Routine.call` for argtype resolution, OUT
+        buffer allocation, return-code policy dispatch, and result unwrap.
+
+        Args:
+            name: Un-mangled FVS routine name (the same key used by
+                :data:`NEEDED_ROUTINES`).
+            **kwargs: Per-parameter values; see the relevant
+                :class:`fvs2py._routines.Routine` declaration for the
+                expected kwarg names.
+
+        Returns:
+            Whatever :meth:`fvs2py._routines.Routine.call` returns for the
+            routine: ``None`` when there are no non-rc OUT params, an
+            unwrapped scalar for a single OUT param, or a dict keyed by
+            OUT-param name for multiple OUT params.
+
+        Raises:
+            NotImplementedError: If ``name`` is not registered in
+                :data:`FVS_ROUTINES` (either a typo or the routine has not
+                been migrated to the registry yet).
+            AttributeError: If the corresponding foreign function has not
+                been resolved on ``self``.
+        """
+        try:
+            routine = FVS_ROUTINES[name]
+        except KeyError as exc:
+            msg = f"{name!r} is not registered in FVS_ROUTINES"
+            raise NotImplementedError(msg) from exc
+        func = getattr(self, f"_{name}")
+        return routine.call(func, **kwargs)
 
     def _load_fvs(self) -> None:
         """Load the FVS shared library into ``self._lib``, unloading any prior handle."""

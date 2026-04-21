@@ -1,3 +1,5 @@
+import ctypes as ct
+
 import pytest
 
 from fvs2py._core import FvsCore
@@ -52,3 +54,45 @@ def test_cdll_load_reformatted_routines():
     assert fvs.variant == "YZ"
     for routine in NEEDED_ROUTINES:
         assert hasattr(fvs, f"_{routine}")
+
+
+# ---------------------------------------------------------------------------
+# FvsCore._invoke — dispatch through FVS_ROUTINES
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("mock_valid_fvs_dll")
+def test_invoke_dispatches_to_registered_routine_and_returns_out_value():
+    fvs = FvsCore("/not/a/real/dir/FVSxx.so")
+
+    def writer(code):
+        code.value = 7
+
+    fvs._fvsGetICCode = writer
+    assert fvs._invoke("fvsGetICCode") == 7
+
+
+@pytest.mark.usefixtures("mock_valid_fvs_dll")
+def test_invoke_passes_inout_buffer_through_to_foreign_function():
+    fvs = FvsCore("/not/a/real/dir/FVSxx.so")
+    captured: list[ct.c_int] = []
+
+    def fvs_stub(itrncd):
+        captured.append(itrncd)
+        itrncd.value = 2
+
+    fvs._fvs = fvs_stub
+    itrncd = ct.c_int(0)
+    assert fvs._invoke("fvs", itrncd=itrncd) is None
+    assert captured == [itrncd]
+    assert itrncd.value == 2
+
+
+@pytest.mark.usefixtures("mock_valid_fvs_dll")
+def test_invoke_unknown_routine_raises_notimplementederror_with_name():
+    fvs = FvsCore("/not/a/real/dir/FVSxx.so")
+    with pytest.raises(
+        NotImplementedError,
+        match="'fvsNotARoutine' is not registered in FVS_ROUTINES",
+    ):
+        fvs._invoke("fvsNotARoutine")
