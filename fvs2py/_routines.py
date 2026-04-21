@@ -313,6 +313,26 @@ def add_trees_policy(rc: int) -> None:
     raise RuntimeError(msg)
 
 
+def add_activity_policy(rc: int) -> None:
+    """Dispatch :class:`fvsAddActivity`'s rFVS-documented return-code contract.
+
+    The FVS API wiki does not document ``fvsAddActivity``'s return code,
+    but the rFVS reference binding specifies ``0`` = OK and ``1`` = some
+    error (cause unspecified). The error case is surfaced as
+    :class:`ValueError` so callers can catch it alongside the mixin's
+    own pre-call guards (keyfile loaded, simulation started, etc.). Any
+    other value is treated as unexpected and raised as
+    :class:`RuntimeError` so callers do not silently proceed.
+    """
+    if rc == 0:
+        return
+    if rc == 1:
+        msg = "fvsAddActivity failed to add the activity"
+        raise ValueError(msg)
+    msg = f"unrecognized fvsAddActivity return code: {rc}"
+    raise RuntimeError(msg)
+
+
 def attr_accessor_policy(rc: int) -> None:
     """Raise if ``rc`` is not :attr:`FvsAttrReturnCode.OK`.
 
@@ -538,6 +558,38 @@ _RAW_ROUTINES: dict[str, Routine] = {
             ),
         ),
         rc_policy=add_trees_policy,
+    ),
+    "fvsEvmonAttr": Routine(
+        params=(
+            Param(name="attr_name", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="action", ctype=ct.c_char_p),
+            Param(
+                name="arr",
+                ctype=np.ctypeslib.ndpointer(np.float64, shape=(1,)),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=attr_accessor_policy,
+    ),
+    "fvsAddActivity": Routine(
+        params=(
+            Param(name="year", ctype=ct.POINTER(ct.c_int)),
+            Param(name="activity_code", ctype=ct.POINTER(ct.c_int)),
+            Param(name="params", ctype=ndptr_f64("nparams")),
+            Param(name="nparams", ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=add_activity_policy,
     ),
     "fvsSummary": Routine(
         params=(

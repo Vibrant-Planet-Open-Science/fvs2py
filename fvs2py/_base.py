@@ -8,18 +8,20 @@ import os
 from fvs2py._core import FvsCore
 from fvs2py._mixins import (
     ControlMixin,
+    EventMixin,
     SimulationMixin,
     SpeciesMixin,
     StandMixin,
     TreesMixin,
 )
 from fvs2py.common import class_requires_fvs_library
-from fvs2py.constants import SPECIES_ATTRS, TREE_ATTRS
+from fvs2py.constants import EVMON_ATTRS, SPECIES_ATTRS, TREE_ATTRS
 from fvs2py.enums import FvsSimulationState
 
 
 @class_requires_fvs_library
 class FVS(
+    EventMixin,
     TreesMixin,
     SpeciesMixin,
     StandMixin,
@@ -29,11 +31,11 @@ class FVS(
 ):
     """Main class for interacting with FVS at runtime.
 
-    Public behavior is contributed by the five mixins
-    (:class:`TreesMixin`, :class:`SpeciesMixin`, :class:`StandMixin`,
-    :class:`SimulationMixin`, :class:`ControlMixin`); this class just
-    initializes the Python-side buffers they rely on and wires the
-    library-reload hook.
+    Public behavior is contributed by the six mixins
+    (:class:`EventMixin`, :class:`TreesMixin`, :class:`SpeciesMixin`,
+    :class:`StandMixin`, :class:`SimulationMixin`, :class:`ControlMixin`);
+    this class just initializes the Python-side buffers they rely on and
+    wires the library-reload hook.
     """
 
     def __init__(self, lib_path: str | os.PathLike) -> None:
@@ -53,6 +55,7 @@ class FVS(
         """
         self.keyfile_path = None
         self.keyfile = None
+        self._evmon_attrs = dict.fromkeys(EVMON_ATTRS)
         self._exit_code = ct.c_int(0)
         self._itrncd = ct.c_int(-1)
         self._maxcycles = ct.c_int(0)

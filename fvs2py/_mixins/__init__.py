@@ -7,6 +7,7 @@ initialized by ``FVS._initialize_attributes``.
 """
 
 from fvs2py._mixins.control import ControlMixin
+from fvs2py._mixins.events import EventMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
@@ -14,6 +15,7 @@ from fvs2py._mixins.trees import TreesMixin
 
 __all__ = [
     "ControlMixin",
+    "EventMixin",
     "SimulationMixin",
     "SpeciesMixin",
     "StandMixin",

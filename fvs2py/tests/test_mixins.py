@@ -16,6 +16,7 @@ import pandas as pd
 import pytest
 
 from fvs2py._mixins.control import ControlMixin
+from fvs2py._mixins.events import EventMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
@@ -23,6 +24,7 @@ from fvs2py._mixins.trees import TreesMixin
 from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
+    EVMON_ATTRS,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     STAND_CN_COLUMN_NAME,
@@ -38,6 +40,7 @@ from fvs2py.constants import (
 )
 from fvs2py.enums import (
     FvsAttributeAccessor,
+    FvsBaseActivity,
     FvsItrnCode,
     FvsRestartCode,
     FvsSimulationState,
@@ -511,6 +514,172 @@ def test_trees_mixin_add_trees_rejects_when_no_plots_loaded():
     )
     with pytest.raises(RuntimeError, match="No inventory plots loaded yet."):
         stub.add_trees(df)
+
+
+# ---------------------------------------------------------------------------
+# EventMixin
+# ---------------------------------------------------------------------------
+
+
+class _EventStub(EventMixin):
+    """Minimal EventMixin host with scenario-shaped ``_fvsEvmonAttr`` and
+    ``_fvsAddActivity`` writer stubs. Tests toggle ``keyfile``,
+    ``stop_point_code``, and ``dims`` to exercise each guard branch.
+
+    The fvsEvmonAttr stub records every GET by ``attr_name`` and writes
+    the corresponding value into the caller's INOUT buffer; unknown
+    names drop an rc=1 to surface through ``attr_accessor_policy``.
+    The fvsAddActivity stub records year, code, params, and nparams for
+    test-side assertions and accepts a configurable return code.
+    """
+
+    def __init__(
+        self,
+        *,
+        keyfile: str | None = "STDIDENT\n",
+        stop_point_code: int | None = 0,
+        ncycles: int = 1,
+        known_values: dict[str, float] | None = None,
+        add_activity_rc: int = 0,
+    ):
+        self._lib = _StubLib()
+        self._evmon_attrs = dict.fromkeys(EVMON_ATTRS)
+        self.keyfile = keyfile
+        self.stop_point_code = stop_point_code
+        self.dims = {STR_NCYCLES: ncycles}
+        self._known_values = known_values or {}
+        self.evmon_calls: list[dict] = []
+        self.activity_calls: list[dict] = []
+        self._add_activity_rc = add_activity_rc
+
+        def fvs_evmon_attr(attr_name, nch, action, arr, rtncode):
+            name = bytes(ct.string_at(attr_name, nch.value)).decode()
+            act = bytes(ct.string_at(action, 3)).decode()
+            self.evmon_calls.append({"name": name, "action": act})
+            if act == "get":
+                if name in self._known_values:
+                    arr[0] = self._known_values[name]
+                    rtncode.value = 0
+                else:
+                    rtncode.value = 1
+            else:
+                self._known_values[name] = float(arr[0])
+                rtncode.value = 0
+
+        def fvs_add_activity(year, code, params, nparams, rtncode):
+            self.activity_calls.append(
+                {
+                    "year": year.value,
+                    "code": code.value,
+                    "params": np.asarray(params).copy(),
+                    "nparams": nparams.value,
+                }
+            )
+            rtncode.value = self._add_activity_rc
+
+        self._fvsEvmonAttr = fvs_evmon_attr
+        self._fvsAddActivity = fvs_add_activity
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
+
+def test_event_mixin_evmon_attr_without_keyfile_raises_keyerror():
+    stub = _EventStub(keyfile=None)
+    with pytest.raises(KeyError, match="No keyfile loaded yet."):
+        stub._evmon_attr("year", FvsAttributeAccessor.GET)
+
+
+def test_event_mixin_evmon_attr_without_stop_point_raises_runtimeerror():
+    stub = _EventStub(stop_point_code=None)
+    with pytest.raises(RuntimeError, match="Simulation has not yet started"):
+        stub._evmon_attr("year", FvsAttributeAccessor.GET)
+
+
+def test_event_mixin_evmon_attr_with_ncycles_zero_returns_none_without_call():
+    stub = _EventStub(ncycles=0)
+    assert stub._evmon_attr("year", FvsAttributeAccessor.GET) is None
+    assert stub.evmon_calls == []
+
+
+def test_event_mixin_evmon_attr_set_without_val_raises_typeerror():
+    stub = _EventStub()
+    with pytest.raises(TypeError, match="Must provide `val`"):
+        stub._evmon_attr("year", FvsAttributeAccessor.SET, None)
+
+
+def test_event_mixin_get_evmon_attr_returns_float_for_known_name():
+    stub = _EventStub(known_values={"year": 2025.0})
+    assert stub.get_evmon_attr("year") == pytest.approx(2025.0)
+
+
+def test_event_mixin_get_evmon_attr_unknown_name_raises_nameerror():
+    stub = _EventStub()
+    with pytest.raises(NameError, match="name not found"):
+        stub.get_evmon_attr("bogus")
+
+
+def test_event_mixin_set_evmon_attr_registers_new_name_in_cache():
+    stub = _EventStub()
+    assert "my_compute_var" not in stub._evmon_attrs
+    stub.set_evmon_attr("my_compute_var", 3.14)
+    assert "my_compute_var" in stub._evmon_attrs
+
+
+def test_event_mixin_evmon_attrs_property_tolerates_name_not_found():
+    stub = _EventStub(known_values={"year": 2025.0})
+    result = stub.evmon_attrs
+    assert result["year"] == pytest.approx(2025.0)
+    assert result["fire"] is None
+
+
+def test_event_mixin_add_activity_without_keyfile_raises_keyerror():
+    stub = _EventStub(keyfile=None)
+    with pytest.raises(KeyError, match="No keyfile loaded yet."):
+        stub.add_activity(2025, FvsBaseActivity.THINPRSC)
+
+
+def test_event_mixin_add_activity_without_stop_point_raises_runtimeerror():
+    stub = _EventStub(stop_point_code=None)
+    with pytest.raises(RuntimeError, match="Simulation hasn't been started"):
+        stub.add_activity(2025, FvsBaseActivity.THINPRSC)
+
+
+def test_event_mixin_add_activity_with_ncycles_zero_raises_runtimeerror():
+    stub = _EventStub(ncycles=0)
+    with pytest.raises(RuntimeError, match="No inventory plots loaded yet"):
+        stub.add_activity(2025, FvsBaseActivity.THINPRSC)
+
+
+def test_event_mixin_add_activity_rejects_nan_params():
+    stub = _EventStub()
+    with pytest.raises(ValueError, match="may not contain NaN"):
+        stub.add_activity(2025, FvsBaseActivity.THINPRSC, params=[1.0, np.nan])
+
+
+def test_event_mixin_add_activity_coerces_enum_to_int_and_passes_params():
+    stub = _EventStub()
+    stub.add_activity(2025, FvsBaseActivity.THINPRSC, params=[1.0, -1.0])
+    assert len(stub.activity_calls) == 1
+    call = stub.activity_calls[0]
+    assert call["year"] == 2025
+    assert call["code"] == int(FvsBaseActivity.THINPRSC)
+    assert call["nparams"] == 2
+    assert call["params"].tolist() == [1.0, -1.0]
+
+
+def test_event_mixin_add_activity_with_none_params_sends_empty_buffer():
+    stub = _EventStub()
+    stub.add_activity(2025, FvsBaseActivity.TREELIST)
+    call = stub.activity_calls[0]
+    assert call["nparams"] == 0
+    assert call["params"].shape == (0,)
+
+
+def test_event_mixin_add_activity_rc_one_raises_valueerror():
+    stub = _EventStub(add_activity_rc=1)
+    with pytest.raises(ValueError, match="failed to add the activity"):
+        stub.add_activity(2025, FvsBaseActivity.THINPRSC)
 
 
 # ---------------------------------------------------------------------------

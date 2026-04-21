@@ -21,6 +21,7 @@ from fvs2py._routines import (
     Param,
     Routine,
     _unwrap,
+    add_activity_policy,
     add_trees_policy,
     attr_accessor_policy,
     ndptr_f64,
@@ -139,6 +140,22 @@ def test_add_trees_policy_dispatches_by_return_code(rc, exc, match):
     else:
         with pytest.raises(exc, match=match):
             add_trees_policy(rc)
+
+
+@pytest.mark.parametrize(
+    ("rc", "exc", "match"),
+    [
+        (0, None, None),
+        (1, ValueError, "fvsAddActivity failed to add the activity"),
+        (999, RuntimeError, "unrecognized fvsAddActivity return code"),
+    ],
+)
+def test_add_activity_policy_dispatches_by_return_code(rc, exc, match):
+    if exc is None:
+        assert add_activity_policy(rc) is None
+    else:
+        with pytest.raises(exc, match=match):
+            add_activity_policy(rc)
 
 
 # ---------------------------------------------------------------------------
