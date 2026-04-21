@@ -294,13 +294,36 @@ def species_code_policy(rc: int) -> None:
     raise RuntimeError(msg)
 
 
+def add_trees_policy(rc: int) -> None:
+    """Dispatch :class:`fvsAddTrees`'s documented return-code contract.
+
+    The FVS API documents two codes for ``fvsAddTrees``: ``0`` = OK and
+    ``1`` = there was not enough room to store the new trees. The latter
+    is surfaced as :class:`ValueError` so callers can catch it alongside
+    the mixin's own capacity pre-check. Any other value is treated as an
+    unexpected return code and raised as :class:`RuntimeError` so callers
+    do not silently proceed.
+    """
+    if rc == 0:
+        return
+    if rc == 1:
+        msg = "Not enough room to store the new trees"
+        raise ValueError(msg)
+    msg = f"unrecognized fvsAddTrees return code: {rc}"
+    raise RuntimeError(msg)
+
+
 def attr_accessor_policy(rc: int) -> None:
     """Raise if ``rc`` is not :attr:`FvsAttrReturnCode.OK`.
 
     Consumed by the ``rc_policy`` field on :class:`Routine` entries whose
     return codes follow the canonical attr-accessor convention shared by
-    ``fvsSpeciesAttr``, ``fvsTreeAttr``, and similar routines. For codes
-    outside the known set, a generic :class:`RuntimeError` is raised.
+    ``fvsSpeciesAttr``, ``fvsTreeAttr``, and similar routines.
+    :attr:`FvsAttrReturnCode.NAME_NOT_FOUND` surfaces as :class:`NameError`
+    (a caller-supplied attribute name that FVS does not recognize); the
+    remaining documented codes surface as :class:`RuntimeError` with the
+    enum's canned message. Codes outside the known set also become a
+    :class:`RuntimeError`, surfaced via the generic "unrecognized" message.
     """
     if rc == FvsAttrReturnCode.OK:
         return
@@ -455,6 +478,66 @@ _RAW_ROUTINES: dict[str, Routine] = {
             ),
         ),
         rc_policy=attr_accessor_policy,
+    ),
+    "fvsTreeAttr": Routine(
+        params=(
+            Param(name="attr_name", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="action", ctype=ct.c_char_p),
+            Param(name=STR_NTREES, ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="arr",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=attr_accessor_policy,
+    ),
+    "fvsAddTrees": Routine(
+        params=(
+            Param(
+                name="dbh",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="species",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="ht",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="cratio",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="plot",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="tpa",
+                ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(name=STR_NTREES, ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=add_trees_policy,
     ),
     "fvsSummary": Routine(
         params=(

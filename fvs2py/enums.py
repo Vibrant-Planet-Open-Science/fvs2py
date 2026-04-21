@@ -104,16 +104,20 @@ class FvsStopPointCode(IntEnum):
 class FvsAttrReturnCode(IntEnum):
     """Return-code values reported by attribute-accessor FVS routines.
 
-    Produced by ``fvsSpeciesAttr`` (and sibling routines with the same
-    convention) in the trailing ``rtncode`` parameter. Each member carries a
-    ``message`` attribute describing the condition, suitable for use in an
-    error message.
+    Produced by ``fvsSpeciesAttr``, ``fvsTreeAttr``, and sibling routines with
+    the same convention in the trailing ``rtncode`` parameter. Each member
+    carries a ``message`` attribute describing the condition, suitable for
+    use in an error message. Codes 2 and 3 are only reported by
+    ``fvsTreeAttr``; they're documented on the shared enum so a single
+    policy can cover every attr accessor.
     """
 
     message: str
 
     OK = 0, "OK"
     NAME_NOT_FOUND = 1, "name not found"
+    NTREES_EXCEEDS_MAX = 2, "ntrees is greater than the maximum allowed"
+    TREE_COUNT_MISMATCH = 3, "there were more or fewer trees than ntrees"
     NAME_LENGTH_INVALID = 4, "length of name string was too large or small"
 
     def __new__(cls, value: int, message: str) -> Self:

@@ -11,12 +11,15 @@ from __future__ import annotations
 
 import ctypes as ct
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from fvs2py._mixins.control import ControlMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
+from fvs2py._mixins.trees import TreesMixin
 from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
@@ -31,6 +34,7 @@ from fvs2py.constants import (
     STR_NCYCLES,
     STR_NPLOTS,
     STR_NTREES,
+    TREE_ATTRS,
 )
 from fvs2py.enums import (
     FvsAttributeAccessor,
@@ -400,6 +404,113 @@ def test_species_mixin_species_attr_set_without_arr_raises_typeerror():
         TypeError, match="Must provide `arr` if `action` is 'set'"
     ):
         stub._species_attr(attr, FvsAttributeAccessor.SET, None)
+
+
+# ---------------------------------------------------------------------------
+# TreesMixin
+# ---------------------------------------------------------------------------
+
+
+class _TreesStub(TreesMixin):
+    """Minimal TreesMixin host with enough Python-side state to exercise the
+    validation branches before any call reaches :meth:`_invoke`.
+
+    The ``dims`` dict and ``species_codes`` frame are instance attributes so
+    individual tests can shape the scenario (empty stand, single-plot stand,
+    etc.) without standing up the full StandMixin/SpeciesMixin stack.
+    """
+
+    def __init__(
+        self,
+        *,
+        ntrees: int = 0,
+        maxtrees: int = 0,
+        nplots: int = 1,
+        species_indices: tuple[int, ...] = (1,),
+    ):
+        self._lib = _StubLib()
+        self._tree_attrs = TREE_ATTRS
+        self._trees = dict.fromkeys(TREE_ATTRS)
+        self.dims = {
+            STR_NTREES: ntrees,
+            STR_MAXTREES: maxtrees,
+            STR_NPLOTS: nplots,
+        }
+        self.species_codes = pd.DataFrame({"fvs_index": list(species_indices)})
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
+
+def test_trees_mixin_tree_attr_set_without_arr_raises_typeerror():
+    stub = _TreesStub(ntrees=3)
+    attr = next(iter(TREE_ATTRS))
+    with pytest.raises(
+        TypeError, match="Must provide `arr` if `action` is 'set'"
+    ):
+        stub._tree_attr(attr, FvsAttributeAccessor.SET, None)
+
+
+def test_trees_mixin_tree_attr_set_with_wrong_shape_raises_valueerror():
+    stub = _TreesStub(ntrees=3)
+    attr = next(iter(TREE_ATTRS))
+    with pytest.raises(ValueError, match=r"same shape as `ntrees` \(3,\)"):
+        stub._tree_attr(attr, FvsAttributeAccessor.SET, np.zeros(shape=(5,)))
+
+
+def test_trees_mixin_trees_property_warns_and_returns_none_when_empty():
+    stub = _TreesStub(ntrees=0)
+    with pytest.warns(UserWarning, match="No trees in FVS yet."):
+        assert stub.trees is None
+
+
+def test_trees_mixin_add_trees_rejects_missing_columns():
+    stub = _TreesStub(maxtrees=10, nplots=1, species_indices=(1,))
+    df = pd.DataFrame(
+        {
+            "dbh": [1.0],
+            "species": [1.0],
+            "ht": [1.0],
+            "cratio": [1.0],
+            "plot": [1.0],
+        }
+    )
+    with pytest.raises(
+        ValueError, match=r"missing required column\(s\) \['tpa'\]"
+    ):
+        stub.add_trees(df)
+
+
+def test_trees_mixin_add_trees_rejects_null_values():
+    stub = _TreesStub(maxtrees=10, nplots=1, species_indices=(1,))
+    df = pd.DataFrame(
+        {
+            "dbh": [1.0, None],
+            "species": [1.0, 1.0],
+            "ht": [1.0, 1.0],
+            "cratio": [1.0, 1.0],
+            "plot": [1.0, 1.0],
+            "tpa": [1.0, 1.0],
+        }
+    )
+    with pytest.raises(ValueError, match="No null values allowed"):
+        stub.add_trees(df)
+
+
+def test_trees_mixin_add_trees_rejects_when_no_plots_loaded():
+    stub = _TreesStub(maxtrees=10, nplots=0, species_indices=(1,))
+    df = pd.DataFrame(
+        {
+            "dbh": [1.0],
+            "species": [1.0],
+            "ht": [1.0],
+            "cratio": [1.0],
+            "plot": [1.0],
+            "tpa": [1.0],
+        }
+    )
+    with pytest.raises(RuntimeError, match="No inventory plots loaded yet."):
+        stub.add_trees(df)
 
 
 # ---------------------------------------------------------------------------

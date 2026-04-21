@@ -21,6 +21,7 @@ from fvs2py._routines import (
     Param,
     Routine,
     _unwrap,
+    add_trees_policy,
     attr_accessor_policy,
     ndptr_f64,
     ndptr_intc,
@@ -83,6 +84,16 @@ def test_ndptr_intc_uses_intc_dtype():
         (int(FvsAttrReturnCode.OK), None, None),
         (int(FvsAttrReturnCode.NAME_NOT_FOUND), NameError, "name not found"),
         (
+            int(FvsAttrReturnCode.NTREES_EXCEEDS_MAX),
+            RuntimeError,
+            "ntrees is greater than the maximum allowed",
+        ),
+        (
+            int(FvsAttrReturnCode.TREE_COUNT_MISMATCH),
+            RuntimeError,
+            "more or fewer trees than ntrees",
+        ),
+        (
             int(FvsAttrReturnCode.NAME_LENGTH_INVALID),
             RuntimeError,
             "length of name string",
@@ -112,6 +123,22 @@ def test_species_code_policy_dispatches_by_return_code(rc, exc, match):
     else:
         with pytest.raises(exc, match=match):
             species_code_policy(rc)
+
+
+@pytest.mark.parametrize(
+    ("rc", "exc", "match"),
+    [
+        (0, None, None),
+        (1, ValueError, "Not enough room to store the new trees"),
+        (999, RuntimeError, "unrecognized fvsAddTrees return code"),
+    ],
+)
+def test_add_trees_policy_dispatches_by_return_code(rc, exc, match):
+    if exc is None:
+        assert add_trees_policy(rc) is None
+    else:
+        with pytest.raises(exc, match=match):
+            add_trees_policy(rc)
 
 
 # ---------------------------------------------------------------------------
