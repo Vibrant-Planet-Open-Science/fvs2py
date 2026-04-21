@@ -372,6 +372,25 @@ _RAW_ROUTINES: dict[str, Routine] = {
         ),
         rc_param=None,
     ),
+    "fvsSetCmdLine": Routine(
+        params=(
+            Param(name="cmdline", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="itrncd",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.INOUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsSetStoppointCodes": Routine(
+        params=(
+            Param(name="stop_point_code", ctype=ct.POINTER(ct.c_int)),
+            Param(name="stop_point_year", ctype=ct.POINTER(ct.c_int)),
+        ),
+        rc_param=None,
+    ),
     "fvsStandID": Routine(
         params=(
             Param(name="stand_id", ctype=ct.c_char_p, intent=Intent.INOUT),

@@ -39,10 +39,6 @@ class Signature(NamedTuple):
 
 FVS_SIGNATURES: Mapping[str, Signature] = MappingProxyType(
     {
-        "fvsSetStoppointCodes": Signature((ct.POINTER(ct.c_int),) * 2),
-        "fvsSetCmdLine": Signature(
-            (ct.c_char_p, ct.POINTER(ct.c_int), ct.POINTER(ct.c_int)),
-        ),
         "fvsSpeciesCode": Signature(
             (ct.c_char_p,) * 3 + (ct.POINTER(ct.c_int),) * 5,
         ),
