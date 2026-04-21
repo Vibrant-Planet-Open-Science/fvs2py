@@ -43,6 +43,44 @@ SPECIES_COLUMN_NAMES = [
     SPECIES_FIA_COLUMN_NAME,
     SPECIES_PLANTS_COLUMN_NAME,
 ]
+ADD_TREES_COLS = (
+    "dbh",
+    "species",
+    "ht",
+    "cratio",
+    "plot",
+    "tpa",
+)
+
+TREE_ATTRS = (
+    "age",
+    "bdft",
+    "cratio",
+    "crownwt0",
+    "crownwt1",
+    "crownwt2",
+    "crownwt3",
+    "crownwt4",
+    "crownwt5",
+    "crwdth",
+    "dbh",
+    "defect",
+    "dg",
+    "ht",
+    "htg",
+    "id",
+    "mcuft",
+    "mgmtcd",
+    "mort",
+    "plot",
+    "plotsize",
+    "ptbalt",
+    "special",
+    "species",
+    "tcuft",
+    "tpa",
+)
+
 SPECIES_ATTRS = (
     "spccf",
     "spsdi",

@@ -11,20 +11,29 @@ from fvs2py._mixins import (
     SimulationMixin,
     SpeciesMixin,
     StandMixin,
+    TreesMixin,
 )
 from fvs2py.common import class_requires_fvs_library
-from fvs2py.constants import SPECIES_ATTRS
+from fvs2py.constants import SPECIES_ATTRS, TREE_ATTRS
 from fvs2py.enums import FvsSimulationState
 
 
 @class_requires_fvs_library
-class FVS(SpeciesMixin, StandMixin, SimulationMixin, ControlMixin, FvsCore):
+class FVS(
+    TreesMixin,
+    SpeciesMixin,
+    StandMixin,
+    SimulationMixin,
+    ControlMixin,
+    FvsCore,
+):
     """Main class for interacting with FVS at runtime.
 
-    Public behavior is contributed by the four mixins
-    (:class:`SpeciesMixin`, :class:`StandMixin`, :class:`SimulationMixin`,
-    :class:`ControlMixin`); this class just initializes the Python-side
-    buffers they rely on and wires the library-reload hook.
+    Public behavior is contributed by the five mixins
+    (:class:`TreesMixin`, :class:`SpeciesMixin`, :class:`StandMixin`,
+    :class:`SimulationMixin`, :class:`ControlMixin`); this class just
+    initializes the Python-side buffers they rely on and wires the
+    library-reload hook.
     """
 
     def __init__(self, lib_path: str | os.PathLike) -> None:
@@ -61,6 +70,8 @@ class FVS(SpeciesMixin, StandMixin, SimulationMixin, ControlMixin, FvsCore):
         self._state = FvsSimulationState.IDLE
         self._stop_point_code = None
         self._stop_point_year = None
+        self._tree_attrs = TREE_ATTRS
+        self._trees = dict.fromkeys(TREE_ATTRS)
 
     def _reload_fvs(self) -> None:
         """Unload the current library, load a fresh one, and reset buffers."""
