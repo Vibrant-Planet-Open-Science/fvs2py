@@ -11,14 +11,11 @@ Mixin methods own Python-facing ergonomics and derive dependent args (e.g.
 ``nattr = len(attr)``, ``ntrees = len(values)``) before handing a
 fully-specified kwarg dict to :meth:`FvsCore._invoke`. The registry itself
 stays free of derivation or validation logic.
-
-This module ships the scaffolding only: the :data:`FVS_ROUTINES` mapping
-starts empty and is populated by subsequent PRs as each mixin migrates to
-the invoker.
 """
 
 from __future__ import annotations
 
+import ctypes as ct
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from enum import Flag, auto
@@ -292,11 +289,50 @@ def attr_accessor_policy(rc: int) -> None:
 
 
 _RAW_ROUTINES: dict[str, Routine] = {
-    # Registry seeds are intentionally empty in this scaffolding commit.
-    # Each follow-up PR adds its routine's :class:`Routine` alongside the
-    # corresponding mixin migration so every entry lands with a matching
-    # call site. Insertion order is the un-mangled FVS routine name; each
-    # entry lists its params in Fortran declaration order.
+    # Entries are added alongside the corresponding mixin migration so every
+    # routine ships with a matching call site. Insertion order is the
+    # un-mangled FVS routine name; each entry lists its params in Fortran
+    # declaration order.
+    "fvs": Routine(
+        params=(
+            Param(
+                name="itrncd",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.INOUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsGetICCode": Routine(
+        params=(
+            Param(
+                name="ic_code",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsGetRtnCode": Routine(
+        params=(
+            Param(
+                name="rtn_code",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsGetRestartCode": Routine(
+        params=(
+            Param(
+                name="restart_code",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_param=None,
+    ),
 }
 
 
@@ -306,8 +342,7 @@ FVS_ROUTINES: Mapping[str, Routine] = MappingProxyType(
 """Immutable registry of FVS routine call descriptions.
 
 Keyed by the un-mangled FVS routine name (matching :data:`NEEDED_ROUTINES`).
-The registry ships empty in the scaffolding commit; entries are added by
-later PRs as each mixin migrates to :meth:`FvsCore._invoke`. Routines not
-(yet) described here remain resolvable through :class:`FvsCore` without the
-registry applying a signature to them.
+Entries are added as each mixin migrates to :meth:`FvsCore._invoke`; routines
+not (yet) described here remain resolvable through :class:`FvsCore` without
+the registry applying a signature to them.
 """

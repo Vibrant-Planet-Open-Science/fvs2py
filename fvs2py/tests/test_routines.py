@@ -305,14 +305,9 @@ def test_call_out_param_in_kwargs_raises_typeerror():
 # ---------------------------------------------------------------------------
 # FVS_ROUTINES registry invariants
 #
-# The registry ships empty in this scaffolding commit; these invariants are
-# authored to guard entries contributed by later PRs (each iterates over
-# ``FVS_ROUTINES.items()`` and is vacuously true until populated).
+# Each iterates over ``FVS_ROUTINES.items()`` and thus applies to every
+# entry contributed by a mixin migration.
 # ---------------------------------------------------------------------------
-
-
-def test_registry_starts_empty_in_scaffolding_commit():
-    assert dict(FVS_ROUTINES) == {}
 
 
 def test_registry_entries_carry_their_mapping_key_as_name():

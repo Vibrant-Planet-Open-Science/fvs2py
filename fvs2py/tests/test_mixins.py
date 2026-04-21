@@ -17,6 +17,7 @@ from fvs2py._mixins.control import ControlMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
+from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
     MGMT_ID_COLUMN_NAME,
@@ -134,7 +135,9 @@ class _SimulationStub(SimulationMixin):
     The ``_fvs`` stub is a no-op so :meth:`SimulationMixin.run` can exercise
     its control flow without a real FVS library. :meth:`set_stop_point_codes`
     is stubbed to a no-op as well; tests that want to observe or override it
-    assign directly on the instance.
+    assign directly on the instance. ``_invoke`` mirrors
+    :meth:`fvs2py._core.FvsCore._invoke` so the mixin exercises the real
+    registry against the attribute-level stubs bound below.
     """
 
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
@@ -162,6 +165,9 @@ class _SimulationStub(SimulationMixin):
         self._fvsGetRestartCode = writer(restart_code)
         self._fvs = fvs
         self.set_stop_point_codes = lambda *_args: None
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
 
 
 def test_simulation_mixin_itrncd_reads_fvs_output():
