@@ -8,6 +8,7 @@ import os
 import warnings
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from fvs2py.common import fvs_property
 from fvs2py.enums import FvsItrnCode, FvsStopPointCode
@@ -17,16 +18,14 @@ from fvs2py.keyfile import validate_single_stand
 class ControlMixin:
     """Expose keyfile loading and stop-point configuration.
 
-    Assumes the composed class provides ``_fvsSetCmdLine`` and
-    ``_fvsSetStoppointCodes`` (resolved by :class:`fvs2py._core.FvsCore`),
-    the ``_itrncd`` buffer, and the ``_stop_point_code``/``_stop_point_year``
-    slots initialized by ``FVS._initialize_attributes``. :meth:`run` on
-    :class:`SimulationMixin` is expected to call into
-    :meth:`set_stop_point_codes`.
+    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
+    dispatch, the ``_itrncd`` buffer, and the
+    ``_stop_point_code``/``_stop_point_year`` slots initialized by
+    ``FVS._initialize_attributes``. :meth:`run` on :class:`SimulationMixin`
+    is expected to call into :meth:`set_stop_point_codes`.
     """
 
-    _fvsSetCmdLine: ct._FuncPointer
-    _fvsSetStoppointCodes: ct._FuncPointer
+    _invoke: Callable[..., Any]
     _itrncd: ct.c_int
     _stop_point_code: ct.c_int | None
     _stop_point_year: ct.c_int | None
@@ -149,7 +148,12 @@ class ControlMixin:
         cmdline = f"--keywordfile={self.keyfile_path}"
         nch = len(cmdline)
 
-        self._fvsSetCmdLine(cmdline.encode(), ct.c_int(nch), self._itrncd)
+        self._invoke(
+            "fvsSetCmdLine",
+            cmdline=cmdline.encode(),
+            nch=ct.c_int(nch),
+            itrncd=self._itrncd,
+        )
         logging.debug(f"Return code updated to {self.itrncd}")
 
     def set_stop_point_codes(
@@ -204,4 +208,8 @@ class ControlMixin:
         elif self._stop_point_year is None:
             self._stop_point_year = ct.c_int(0)
 
-        self._fvsSetStoppointCodes(self._stop_point_code, self._stop_point_year)
+        self._invoke(
+            "fvsSetStoppointCodes",
+            stop_point_code=self._stop_point_code,
+            stop_point_year=self._stop_point_year,
+        )

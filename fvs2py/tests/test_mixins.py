@@ -297,6 +297,9 @@ class _ControlStub(ControlMixin):
         self._stop_point_year = None
         self._fvsSetStoppointCodes = lambda *_args: None
 
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
 
 def test_control_mixin_stop_point_code_returns_none_when_unset():
     stub = _ControlStub()
