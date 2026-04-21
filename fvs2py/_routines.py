@@ -27,7 +27,7 @@ from typing import Any
 
 import numpy as np
 
-from fvs2py._constants import STR_C_CONTIGUOUS
+from fvs2py.constants import STR_C_CONTIGUOUS
 from fvs2py.enums import FvsAttrReturnCode
 
 
