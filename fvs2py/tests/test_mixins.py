@@ -83,6 +83,9 @@ class _StandStub(StandMixin, ControlMixin):
         self._fvsDimSizes = fvs_dim_sizes
         self._fvsStandID = fvs_stand_id
 
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
 
 def test_stand_mixin_dims_returns_named_dict():
     stub = _StandStub()

@@ -24,7 +24,16 @@ from typing import Any
 
 import numpy as np
 
-from fvs2py.constants import STR_C_CONTIGUOUS
+from fvs2py.constants import (
+    STR_C_CONTIGUOUS,
+    STR_MAXCYCLES,
+    STR_MAXPLOTS,
+    STR_MAXSPECIES,
+    STR_MAXTREES,
+    STR_NCYCLES,
+    STR_NPLOTS,
+    STR_NTREES,
+)
 from fvs2py.enums import FvsAttrReturnCode
 
 
@@ -332,6 +341,65 @@ _RAW_ROUTINES: dict[str, Routine] = {
             ),
         ),
         rc_param=None,
+    ),
+    "fvsDimSizes": Routine(
+        params=(
+            Param(
+                name=STR_NTREES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
+            ),
+            Param(
+                name=STR_NCYCLES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
+            ),
+            Param(
+                name=STR_NPLOTS, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
+            ),
+            Param(
+                name=STR_MAXTREES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
+            ),
+            Param(
+                name=STR_MAXSPECIES,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_MAXPLOTS, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
+            ),
+            Param(
+                name=STR_MAXCYCLES,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsStandID": Routine(
+        params=(
+            Param(name="stand_id", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="stand_cn", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="mgmt_id", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="stand_id_len", ctype=ct.POINTER(ct.c_int)),
+            Param(name="stand_cn_len", ctype=ct.POINTER(ct.c_int)),
+            Param(name="mgmt_id_len", ctype=ct.POINTER(ct.c_int)),
+        ),
+        rc_param=None,
+    ),
+    "fvsSummary": Routine(
+        params=(
+            Param(
+                name="summary",
+                ctype=np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),
+                intent=Intent.INOUT,
+            ),
+            Param(name="icycle", ctype=ct.POINTER(ct.c_int)),
+            Param(name="ncycles", ctype=ct.POINTER(ct.c_int)),
+            Param(name="maxrow", ctype=ct.POINTER(ct.c_int)),
+            Param(name="maxcol", ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
     ),
 }
 

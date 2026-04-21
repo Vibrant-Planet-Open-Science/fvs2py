@@ -3,23 +3,18 @@
 from __future__ import annotations
 
 import ctypes as ct
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from fvs2py.common import call_out, fvs_property
+from fvs2py.common import fvs_property
 from fvs2py.constants import (
     MGMT_ID_COLUMN_NAME,
     STAND_CN_COLUMN_NAME,
     STAND_ID_COLUMN_NAME,
-    STR_C_CONTIGUOUS,
-    STR_MAXCYCLES,
-    STR_MAXPLOTS,
-    STR_MAXSPECIES,
-    STR_MAXTREES,
     STR_NCYCLES,
-    STR_NPLOTS,
-    STR_NTREES,
     SUMMARY_COLS,
 )
 
@@ -27,17 +22,13 @@ from fvs2py.constants import (
 class StandMixin:
     """Expose stand-level FVS outputs: dimensions, identifiers, summary table.
 
-    Assumes the composed class provides the foreign-function attributes
-    ``_fvsDimSizes``, ``_fvsStandID``, ``_fvsSummary`` (resolved by
-    :class:`fvs2py._core.FvsCore`) and the Python-side buffers ``_stand_id``,
-    ``_stand_cn``, ``_mgmt_id`` (initialized by
-    ``FVS._initialize_attributes``). ``keyfile`` and ``stop_point_code``
-    come from :class:`ControlMixin`.
+    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
+    dispatch and the Python-side buffers ``_stand_id``, ``_stand_cn``,
+    ``_mgmt_id`` (initialized by ``FVS._initialize_attributes``). ``keyfile``
+    and ``stop_point_code`` come from :class:`ControlMixin`.
     """
 
-    _fvsDimSizes: ct._FuncPointer
-    _fvsStandID: ct._FuncPointer
-    _fvsSummary: ct._FuncPointer
+    _invoke: Callable[..., Any]
     _stand_id: ct.Array[ct.c_char]
     _stand_cn: ct.Array[ct.c_char]
     _mgmt_id: ct.Array[ct.c_char]
@@ -47,18 +38,7 @@ class StandMixin:
     @fvs_property
     def dims(self) -> dict:
         """Return the max dimensions of important FVS data storage."""
-        ntrees, ncycles, nplots, maxtrees, maxspecies, maxplots, maxcycles = (
-            call_out(self._fvsDimSizes, out_types=(ct.c_int,) * 7)
-        )
-        return {
-            STR_NTREES: ntrees,
-            STR_NCYCLES: ncycles,
-            STR_NPLOTS: nplots,
-            STR_MAXTREES: maxtrees,
-            STR_MAXSPECIES: maxspecies,
-            STR_MAXPLOTS: maxplots,
-            STR_MAXCYCLES: maxcycles,
-        }
+        return self._invoke("fvsDimSizes")
 
     @fvs_property
     def stand_ids(self) -> dict:
@@ -76,13 +56,14 @@ class StandMixin:
             msg = "No inventory data loaded yet. Call `run` method."
             raise RuntimeError(msg)
 
-        self._fvsStandID(
-            self._stand_id,
-            self._stand_cn,
-            self._mgmt_id,
-            ct.c_int(0),
-            ct.c_int(0),
-            ct.c_int(0),
+        self._invoke(
+            "fvsStandID",
+            stand_id=self._stand_id,
+            stand_cn=self._stand_cn,
+            mgmt_id=self._mgmt_id,
+            stand_id_len=ct.c_int(0),
+            stand_cn_len=ct.c_int(0),
+            mgmt_id_len=ct.c_int(0),
         )
 
         return {
@@ -98,16 +79,6 @@ class StandMixin:
         The returned dataframe omits cycles that have not yet been initiated, which are
         identifiable where all values in that row are zero.
         """
-        self._fvsSummary.argtypes = [
-            np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),  # type: ignore[arg-type]
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-            ct.POINTER(ct.c_int),
-        ]
-        self._fvsSummary.restype = None
-
         dims = self.dims
         if dims[STR_NCYCLES] == 0:
             return None
@@ -116,13 +87,13 @@ class StandMixin:
             shape=(dims[STR_NCYCLES] + 1, len(SUMMARY_COLS)),
         )
         for i in range(dims[STR_NCYCLES] + 1):
-            self._fvsSummary(
-                summary[i],
-                ct.c_int(i + 1),  # icycle
-                ct.c_int(dims[STR_NCYCLES]),  # ncycles
-                ct.c_int(0),  # maxrow
-                ct.c_int(0),  # maxcol
-                ct.c_int(0),  # rtncode
+            self._invoke(
+                "fvsSummary",
+                summary=summary[i],
+                icycle=ct.c_int(i + 1),
+                ncycles=ct.c_int(dims[STR_NCYCLES]),
+                maxrow=ct.c_int(0),
+                maxcol=ct.c_int(0),
             )
 
         empty_years = (summary == 0).all(axis=1)
