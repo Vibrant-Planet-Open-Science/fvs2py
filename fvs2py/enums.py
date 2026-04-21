@@ -136,6 +136,171 @@ class FvsAttrReturnCode(IntEnum):
         return obj
 
 
+class FvsBaseActivity(IntEnum):
+    """Activity codes for the FVS base model.
+
+    Names match the keywords in the FVS Keyword Guide (no extension prefix,
+    since the extension is implicit in this enum's type).
+    """
+
+    TREELIST = 80
+    CRNMULT = 81
+    MANAGED = 82
+    FIXCW = 90
+    BAIMULT = 91
+    HTGMULT = 92
+    REGHMULT = 93
+    MORTMULT = 94
+    REGDMULT = 96
+    FIXMORT = 97
+    FIXDG = 98
+    FIXHTG = 99
+    SYSTEM = 100
+    HTGSTOP = 110
+    TOPKILL = 111
+    SETSITE = 120
+    ATRTLIST = 198
+    CUTLIST = 199
+    MINHARV = 200
+    SPECPREF = 201
+    TCONDMLT = 202
+    YARDLOSS = 203
+    FVSSTAND = 204
+    CRUZFILE = 205
+    MCDEFECT = 215
+    BFDEFECT = 216
+    VOLUME = 217
+    BFVOLUME = 218
+    THINAUTO = 222
+    THINBTA = 223
+    THINATA = 224
+    THINBBA = 225
+    THINABA = 226
+    THINPRSC = 227
+    THINDBH = 228
+    SALVAGE = 229
+    THINSDI = 230
+    THINCC = 231
+    THINHT = 232
+    THINMIST = 233
+    THINRDEN = 234
+    THINPT = 235
+    THINRDSL = 236
+    SETPTHIN = 248
+    PRUNE = 249
+    COMPRESS = 250
+    FERTILIZ = 260
+    RESETAGE = 443
+
+
+class FvsDatabaseActivity(IntEnum):
+    """Activity codes for the FVS database input/output extension."""
+
+    SQLIN = 101
+    SQLOUT = 102
+
+
+class FvsEstablishmentActivity(IntEnum):
+    """Activity codes for the FVS Establishment extension."""
+
+    SPECMULT = 95
+    TALLY = 427
+    TALLYONE = 428
+    TALLYTWO = 429
+    PLANT = 430
+    NATURAL = 431
+    ADDTREES = 432
+    STOCKADJ = 440
+    HTADJ = 442
+    SPROUT = 450
+    # NATURAL (490) is documented in some FVS variant guides but is
+    # omitted from rFVS's activity table and from this enum until we
+    # have evidence it is live in the shared library we target.
+    BURNPREP = 491
+    MECHPREP = 493
+
+
+class FvsCoverActivity(IntEnum):
+    """Activity codes for the FVS Cover extension."""
+
+    COVER = 900
+
+
+class FvsMistletoeActivity(IntEnum):
+    """Activity codes for the FVS Dwarf Mistletoe extension."""
+
+    MISTMULT = 2001
+    MISTPREF = 2002
+    MISTMORT = 2003
+    MISTHMOD = 2004
+    MISTGMOD = 2005
+    MISTPINF = 2006
+    MISTABLE = 2007
+
+
+class FvsFireAndFuelsActivity(IntEnum):
+    """Activity codes for the FVS Fire and Fuels extension."""
+
+    SALVSP = 2501
+    SOILHEAT = 2503
+    BURNREPT = 2504
+    MOISTURE = 2505
+    SIMFIRE = 2506
+    FLAMEADJ = 2507
+    POTFIRE = 2508
+    SNAGOUT = 2512
+    FUELOUT = 2515
+    SALVAGE = 2520
+    FUELINIT = 2521
+    SNAGINIT = 2522
+    PILEBURN = 2523
+    FUELTRET = 2525
+    FUELREPT = 2527
+    MORTREPT = 2528
+    DROUGHT = 2529
+    FUELMOVE = 2530
+    FUELMODL = 2538
+    DEFULMOD = 2539
+    CARBREPT = 2544
+    CARBCUT = 2545
+    CANFPROF = 2547
+    FUELFOTO = 2548
+    FIRECALC = 2549
+    FMODLIST = 2550
+    DWDVLOUT = 2551
+    DWDCVOUT = 2552
+    FUELSOFT = 2553
+
+
+class FvsEconomicsActivity(IntEnum):
+    """Activity codes for the FVS Economics extension."""
+
+    PRETEND = 2605
+    SEVSTART = 2606
+    SPECCST = 2607
+    SPECRVN = 2608
+    STRTECON = 2609
+
+
+FvsActivity = (
+    FvsBaseActivity
+    | FvsDatabaseActivity
+    | FvsEstablishmentActivity
+    | FvsCoverActivity
+    | FvsMistletoeActivity
+    | FvsFireAndFuelsActivity
+    | FvsEconomicsActivity
+)
+"""Union of every per-extension FVS activity enum.
+
+Any :class:`IntEnum` member from the extension-scoped activity enums is a
+valid :class:`FvsActivity`. Callers pass a member from the appropriate
+extension enum (``FvsBaseActivity.SALVAGE`` vs. ``FvsFireAndFuelsActivity.SALVAGE``);
+``int(activity)`` unwraps it to the underlying FVS code for the library
+call.
+"""
+
+
 class FvsSimulationState(StrEnum):
     """Python-side state of the FVS simulation lifecycle.
 
