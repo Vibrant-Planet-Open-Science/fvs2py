@@ -277,6 +277,23 @@ def ndptr_intc(
     return factory
 
 
+def species_code_policy(rc: int) -> None:
+    """Raise :class:`IndexError` on ``fvsSpeciesCode``'s out-of-range signal.
+
+    The FVS API contract for ``fvsSpeciesCode`` is ``0`` = OK and ``1`` =
+    index is out of range. Any other value is treated as an unexpected
+    return code and surfaced as :class:`RuntimeError` so the caller does
+    not silently proceed with a value they cannot interpret.
+    """
+    if rc == 0:
+        return
+    if rc == 1:
+        msg = "Species index out of range"
+        raise IndexError(msg)
+    msg = f"unrecognized fvsSpeciesCode return code: {rc}"
+    raise RuntimeError(msg)
+
+
 def attr_accessor_policy(rc: int) -> None:
     """Raise if ``rc`` is not :attr:`FvsAttrReturnCode.OK`.
 
@@ -411,9 +428,13 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="fvs_spp_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="fia_spp_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="plants_spp_len", ctype=ct.POINTER(ct.c_int)),
-            Param(name="rtncode", ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
         ),
-        rc_param=None,
+        rc_policy=species_code_policy,
     ),
     "fvsSpeciesAttr": Routine(
         params=(

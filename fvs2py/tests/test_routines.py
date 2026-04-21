@@ -24,6 +24,7 @@ from fvs2py._routines import (
     attr_accessor_policy,
     ndptr_f64,
     ndptr_intc,
+    species_code_policy,
 )
 from fvs2py.enums import FvsAttrReturnCode
 
@@ -95,6 +96,22 @@ def test_attr_accessor_policy_dispatches_by_return_code(rc, exc, match):
     else:
         with pytest.raises(exc, match=match):
             attr_accessor_policy(rc)
+
+
+@pytest.mark.parametrize(
+    ("rc", "exc", "match"),
+    [
+        (0, None, None),
+        (1, IndexError, "Species index out of range"),
+        (999, RuntimeError, "unrecognized fvsSpeciesCode return code"),
+    ],
+)
+def test_species_code_policy_dispatches_by_return_code(rc, exc, match):
+    if exc is None:
+        assert species_code_policy(rc) is None
+    else:
+        with pytest.raises(exc, match=match):
+            species_code_policy(rc)
 
 
 # ---------------------------------------------------------------------------

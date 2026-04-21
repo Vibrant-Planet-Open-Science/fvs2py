@@ -12,10 +12,7 @@ import numpy.typing as npt
 import pandas as pd
 
 from fvs2py.common import fvs_property
-from fvs2py.constants import (
-    SPECIES_COLUMN_NAMES,
-    STR_MAXSPECIES,
-)
+from fvs2py.constants import SPECIES_COLUMN_NAMES, STR_MAXSPECIES
 from fvs2py.enums import FvsAttributeAccessor
 
 
@@ -63,7 +60,6 @@ class SpeciesMixin:
                 fvs_spp_len=ct.c_int(0),
                 fia_spp_len=ct.c_int(0),
                 plants_spp_len=ct.c_int(0),
-                rtncode=ct.c_int(0),
             )
             spp_codes.iloc[i] = (
                 i + 1,
