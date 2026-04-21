@@ -380,6 +380,9 @@ class _SpeciesStub(SpeciesMixin):
         self._lib = _StubLib()
         self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
 
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
 
 def test_species_mixin_species_attr_unknown_name_raises_nameerror():
     stub = _SpeciesStub()

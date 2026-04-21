@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ctypes as ct
 import warnings
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -12,24 +14,21 @@ import pandas as pd
 from fvs2py.common import fvs_property
 from fvs2py.constants import (
     SPECIES_COLUMN_NAMES,
-    STR_C_CONTIGUOUS,
     STR_MAXSPECIES,
 )
-from fvs2py.enums import FvsAttributeAccessor, FvsAttrReturnCode
+from fvs2py.enums import FvsAttributeAccessor
 
 
 class SpeciesMixin:
     """Expose species metadata and per-species attribute get/set helpers.
 
-    Assumes the composed class provides the foreign-function attributes
-    ``_fvsSpeciesCode`` and ``_fvsSpeciesAttr`` (resolved by
-    :class:`fvs2py._core.FvsCore`) and the ``_species_attrs`` mapping
-    seeded by ``FVS._initialize_attributes``. Uses ``self.dims`` from
+    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
+    dispatch and the ``_species_attrs`` mapping seeded by
+    ``FVS._initialize_attributes``. Uses ``self.dims`` from
     :class:`StandMixin`.
     """
 
-    _fvsSpeciesCode: ct._FuncPointer
-    _fvsSpeciesAttr: ct._FuncPointer
+    _invoke: Callable[..., Any]
     _species_attrs: dict[str, npt.NDArray[np.float64] | None]
     dims: dict
 
@@ -48,7 +47,6 @@ class SpeciesMixin:
         _fvs_spp = ct.create_string_buffer(4)
         _fia_spp = ct.create_string_buffer(4)
         _plants_spp = ct.create_string_buffer(6)
-        returncd = ct.c_int(0)
 
         spp_codes = pd.DataFrame(
             index=range(dims[STR_MAXSPECIES]),
@@ -56,19 +54,17 @@ class SpeciesMixin:
         )
 
         for i in range(dims[STR_MAXSPECIES]):
-            self._fvsSpeciesCode(
-                _fvs_spp,
-                _fia_spp,
-                _plants_spp,
-                ct.c_int(i + 1),
-                ct.c_int(0),
-                ct.c_int(0),
-                ct.c_int(0),
-                ct.c_int(0),
+            self._invoke(
+                "fvsSpeciesCode",
+                fvs_spp=_fvs_spp,
+                fia_spp=_fia_spp,
+                plants_spp=_plants_spp,
+                index=ct.c_int(i + 1),
+                fvs_spp_len=ct.c_int(0),
+                fia_spp_len=ct.c_int(0),
+                plants_spp_len=ct.c_int(0),
+                rtncode=ct.c_int(0),
             )
-            if returncd.value != 0:
-                msg = f"Index {i + 1} out of range"
-                raise IndexError(msg)
             spp_codes.iloc[i] = (
                 i + 1,
                 _fvs_spp.value.decode().strip(),
@@ -185,27 +181,10 @@ class SpeciesMixin:
                 raise ValueError(msg)
             self._species_attrs[attr] = arr
 
-        self._fvsSpeciesAttr.argtypes = [
-            ct.POINTER(ct.c_char),  # attr name
-            ct.POINTER(ct.c_int),  # number of characters in attr name
-            ct.POINTER(ct.c_char),  # action (set or get)
-            np.ctypeslib.ndpointer(  # type: ignore[arg-type]
-                np.float64, shape=(dims[STR_MAXSPECIES]), flags=STR_C_CONTIGUOUS
-            ),  # array to fill
-            ct.POINTER(ct.c_int),  # return code
-        ]
-        self._fvsSpeciesAttr.restype = None
-
-        rtncode = ct.c_int(0)
-        self._fvsSpeciesAttr(
-            ct.c_char_p(attr.encode()),  # attribute requested
-            ct.c_int(len(attr)),  # number of characters in attr name
-            ct.c_char_p(action.encode()),  # "set" or "get"
-            self._species_attrs[attr],  # array to fill
-            rtncode,  # return code of setting/getting operation
+        self._invoke(
+            "fvsSpeciesAttr",
+            attr_name=ct.c_char_p(attr.encode()),
+            nch=ct.c_int(len(attr)),
+            action=ct.c_char_p(action.encode()),
+            arr=self._species_attrs[attr],
         )
-        if rtncode.value != FvsAttrReturnCode.OK:
-            if rtncode.value == FvsAttrReturnCode.NAME_NOT_FOUND:
-                msg = f"{attr} not found among species attributes"
-                raise NameError(msg)
-            raise RuntimeError(FvsAttrReturnCode(rtncode.value).message)  # type: ignore[call-arg]
