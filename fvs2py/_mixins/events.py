@@ -154,9 +154,11 @@ class EventMixin:
                 per-extension activity enums (``FvsBaseActivity``,
                 ``FvsFireActivity``, etc.) or a raw FVS activity code as
                 an integer.
-            params: Optional iterable of numeric parameters for the
-                activity. ``None`` is equivalent to "no parameters"; a
-                length-zero buffer is passed to FVS in that case.
+            params: Iterable of numeric parameters for the activity.
+                ``None`` and an empty iterable both pass a length-zero
+                buffer to FVS, which is only safe for activities that
+                take no parameters (e.g. ``FvsBaseActivity.TREELIST``).
+                See the warning below.
 
         Raises:
             KeyError: If no keyfile has been loaded.
@@ -164,6 +166,34 @@ class EventMixin:
                 inventory has been loaded.
             ValueError: If FVS reports a failure
                 (``fvsAddActivity`` rtncode == 1).
+
+        Warning:
+            FVS does **not** validate the length of ``params`` against the
+            chosen activity's documented signature. Internally,
+            ``fvsAddActivity`` copies the caller's values into a fixed
+            20-wide ``real(4)`` buffer and hands the whole buffer to
+            ``opadd``, which then interprets every slot the keyword's
+            schema expects. Any positions past ``len(params)`` contain
+            **uninitialized stack memory** that ``opadd`` will read as if
+            it were valid input. ``fvsAddActivity`` still returns
+            ``rtncode == 0`` in this case, so the failure is silent: the
+            activity may no-op, or it may be scheduled with nonsensical
+            thresholds, depending on what happened to be on the stack at
+            call time.
+
+            Callers should therefore supply the full documented parameter
+            vector for every activity. There are no "optional" trailing
+            parameters from FVS's point of view. Consult the
+            `FVS Keyword Reference Guide
+            <https://www.fs.usda.gov/fvs/documents/gtrs/FVSKeywords.pdf>`_
+            for the field count and default values of each keyword.
+
+            For example, ``FvsBaseActivity.THINABA`` takes six fields
+            (residual BA, cut efficiency, min DBH, max DBH, min HT, max
+            HT). Passing only a target residual basal area
+            (``params=[80]``) will silently misbehave. The correct call
+            supplies every field explicitly, e.g.
+            ``params=[80.0, 1.0, 0.0, 999.0, 0.0, 999.0]``.
         """
         if self.keyfile is None:
             msg = "No keyfile loaded yet."
