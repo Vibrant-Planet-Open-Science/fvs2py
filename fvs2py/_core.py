@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from fvs2py._routines import FVS_ROUTINES
-from fvs2py._signatures import FVS_SIGNATURES
 from fvs2py.common import load_dll, unload_dll
 from fvs2py.constants import NEEDED_ROUTINES
 
@@ -20,9 +19,9 @@ class FvsCore:
 
         Resolves each routine in :data:`NEEDED_ROUTINES` from the loaded
         library, tolerating both the unix-style ``name_`` mangling and the
-        un-mangled ``name`` spelling, then applies any static ctypes
-        signature declared in :data:`FVS_SIGNATURES` so call sites no longer
-        need to reassign ``argtypes``/``restype`` on each invocation.
+        un-mangled ``name`` spelling, and assigns each to ``self._<name>``.
+        Argtypes/restype are applied per-call by :meth:`_invoke` via the
+        :data:`fvs2py._routines.FVS_ROUTINES` registry.
 
         Args:
             lib_path: Path to the FVS shared library.
@@ -68,13 +67,14 @@ class FvsCore:
         self._resolve_routines()
 
     def _resolve_routines(self) -> None:
-        """Bind each needed FVS routine to ``self`` and apply its signature.
+        """Bind each needed FVS routine to ``self`` as a raw ``_FuncPointer``.
 
         For every name in :data:`NEEDED_ROUTINES`, look up the corresponding
         foreign function on ``self._lib`` (trying the ``name_`` mangling
-        first, then the un-mangled name), assign the resolved function to
-        ``self._<name>``, and apply any signature declared in
-        :data:`FVS_SIGNATURES`.
+        first, then the un-mangled name) and assign the resolved function to
+        ``self._<name>``. Per-call argtypes/restype are applied by
+        :meth:`_invoke` using the :data:`fvs2py._routines.FVS_ROUTINES`
+        registry; no static signature is applied here.
 
         Raises:
             ImportError: If any needed routines are missing or not callable.
@@ -92,10 +92,6 @@ class FvsCore:
             if func is None:
                 missing.append(name)
                 continue
-            sig = FVS_SIGNATURES.get(name)
-            if sig is not None:
-                func.argtypes = sig.argtypes
-                func.restype = sig.restype
             setattr(self, f"_{name}", func)
 
         if missing:

@@ -402,6 +402,39 @@ _RAW_ROUTINES: dict[str, Routine] = {
         ),
         rc_param=None,
     ),
+    "fvsSpeciesCode": Routine(
+        params=(
+            Param(name="fvs_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="fia_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="plants_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="index", ctype=ct.POINTER(ct.c_int)),
+            Param(name="fvs_spp_len", ctype=ct.POINTER(ct.c_int)),
+            Param(name="fia_spp_len", ctype=ct.POINTER(ct.c_int)),
+            Param(name="plants_spp_len", ctype=ct.POINTER(ct.c_int)),
+            Param(name="rtncode", ctype=ct.POINTER(ct.c_int)),
+        ),
+        rc_param=None,
+    ),
+    "fvsSpeciesAttr": Routine(
+        params=(
+            Param(name="attr_name", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="action", ctype=ct.c_char_p),
+            Param(
+                name="arr",
+                ctype=np.ctypeslib.ndpointer(
+                    np.float64, flags=STR_C_CONTIGUOUS
+                ),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=attr_accessor_policy,
+    ),
     "fvsSummary": Routine(
         params=(
             Param(
