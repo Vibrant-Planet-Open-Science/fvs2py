@@ -5,25 +5,22 @@ from __future__ import annotations
 import ctypes as ct
 import logging
 from collections.abc import Callable
+from typing import Any
 
-from fvs2py.common import call_out, fvs_property
+from fvs2py.common import fvs_property
 from fvs2py.enums import FvsItrnCode, FvsRestartCode, FvsSimulationState
 
 
 class SimulationMixin:
     """Expose FVS simulation status codes and the top-level :meth:`run` loop.
 
-    Assumes the composed class provides the foreign-function attributes
-    ``_fvs``, ``_fvsGetICCode``, ``_fvsGetRtnCode``, ``_fvsGetRestartCode``
-    (resolved by :class:`fvs2py._core.FvsCore`) plus the Python-side buffers
-    ``_itrncd`` and ``_state``, the ``keyfile`` attribute, and the
-    :meth:`set_stop_point_codes` helper contributed by :class:`ControlMixin`.
+    Assumes the composed class provides :meth:`fvs2py._core.FvsCore._invoke`
+    plus the Python-side buffers ``_itrncd`` and ``_state``, the ``keyfile``
+    attribute, and the :meth:`set_stop_point_codes` helper contributed by
+    :class:`ControlMixin`.
     """
 
-    _fvs: ct._FuncPointer
-    _fvsGetICCode: ct._FuncPointer
-    _fvsGetRtnCode: ct._FuncPointer
-    _fvsGetRestartCode: ct._FuncPointer
+    _invoke: Callable[..., Any]
     _itrncd: ct.c_int
     _state: FvsSimulationState
     keyfile: str | None
@@ -42,7 +39,7 @@ class SimulationMixin:
           3 - Extension or group activities error.
           4 - Scratch file error.
         """
-        return call_out(self._fvsGetICCode)
+        return self._invoke("fvsGetICCode")
 
     @fvs_property
     def itrncd(self) -> int:
@@ -55,7 +52,7 @@ class SimulationMixin:
          2: indicates that FVS has finished processing all the stands; new input
                 can be specified.
         """
-        return call_out(self._fvsGetRtnCode)
+        return self._invoke("fvsGetRtnCode")
 
     @fvs_property
     def restart_code(self) -> int:
@@ -71,19 +68,19 @@ class SimulationMixin:
         100: Stop was done after a stand has been simulated but prior to
                 starting a subsequent stand.
         """
-        return call_out(self._fvsGetRestartCode)
+        return self._invoke("fvsGetRestartCode")
 
     def _run_cycles(self) -> None:
         """Advance FVS until the current stand pauses or reaches stand-done.
 
         Shared inner loop used by both :meth:`run` and :meth:`run_batch`: call
-        ``_fvs`` while FVS reports a good running state, breaking out the
+        ``fvs`` while FVS reports a good running state, breaking out the
         moment ``restart_code`` leaves ``INITIALIZED`` (either a stop-point
         pause or the ``DONE_RUNNING_STAND`` marker).
         """
         while self.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
             logging.debug("itrncd in GOOD_RUNNING_STATE.")
-            self._fvs(self._itrncd)
+            self._invoke("fvs", itrncd=self._itrncd)
             logging.debug(f"Ran _fvs routine, itrncd is {self.itrncd}")
             if self.restart_code != FvsRestartCode.INITIALIZED:
                 logging.debug("restart code non-zero, halting run loop.")
@@ -148,7 +145,7 @@ class SimulationMixin:
             self._run_cycles()
             if self.restart_code == FvsRestartCode.DONE_RUNNING_STAND:
                 logging.debug("Stand complete; flushing output.")
-                self._fvs(self._itrncd)
+                self._invoke("fvs", itrncd=self._itrncd)
             self._state = FvsSimulationState.COMPLETE
         except Exception:
             self._state = FvsSimulationState.ERROR

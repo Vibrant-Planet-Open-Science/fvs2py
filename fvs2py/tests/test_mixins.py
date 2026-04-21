@@ -17,6 +17,7 @@ from fvs2py._mixins.control import ControlMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
+from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
     MGMT_ID_COLUMN_NAME,
@@ -82,6 +83,9 @@ class _StandStub(StandMixin, ControlMixin):
         self._fvsDimSizes = fvs_dim_sizes
         self._fvsStandID = fvs_stand_id
 
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
 
 def test_stand_mixin_dims_returns_named_dict():
     stub = _StandStub()
@@ -134,7 +138,9 @@ class _SimulationStub(SimulationMixin):
     The ``_fvs`` stub is a no-op so :meth:`SimulationMixin.run` can exercise
     its control flow without a real FVS library. :meth:`set_stop_point_codes`
     is stubbed to a no-op as well; tests that want to observe or override it
-    assign directly on the instance.
+    assign directly on the instance. ``_invoke`` mirrors
+    :meth:`fvs2py._core.FvsCore._invoke` so the mixin exercises the real
+    registry against the attribute-level stubs bound below.
     """
 
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
@@ -162,6 +168,9 @@ class _SimulationStub(SimulationMixin):
         self._fvsGetRestartCode = writer(restart_code)
         self._fvs = fvs
         self.set_stop_point_codes = lambda *_args: None
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
 
 
 def test_simulation_mixin_itrncd_reads_fvs_output():
@@ -288,6 +297,9 @@ class _ControlStub(ControlMixin):
         self._stop_point_year = None
         self._fvsSetStoppointCodes = lambda *_args: None
 
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
 
 def test_control_mixin_stop_point_code_returns_none_when_unset():
     stub = _ControlStub()
@@ -367,6 +379,9 @@ class _SpeciesStub(SpeciesMixin):
     def __init__(self):
         self._lib = _StubLib()
         self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
 
 
 def test_species_mixin_species_attr_unknown_name_raises_nameerror():
