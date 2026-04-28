@@ -20,11 +20,13 @@ from fvs2py._mixins.events import EventMixin
 from fvs2py._mixins.simulation import SimulationMixin
 from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
+from fvs2py._mixins.svs import SVSMixin
 from fvs2py._mixins.trees import TreesMixin
 from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
     EVMON_ATTRS,
+    FFE_FALLYRS_ATTRS,
     MGMT_ID_COLUMN_NAME,
     SPECIES_ATTRS,
     STAND_CN_COLUMN_NAME,
@@ -33,9 +35,16 @@ from fvs2py.constants import (
     STR_MAXPLOTS,
     STR_MAXSPECIES,
     STR_MAXTREES,
+    STR_MXCWDOBJS,
+    STR_MXDEADOBJS,
+    STR_MXSVSOBJS,
+    STR_NCWDOBJS,
     STR_NCYCLES,
+    STR_NDEADOBJS,
     STR_NPLOTS,
+    STR_NSVSOBJS,
     STR_NTREES,
+    SVS_OBJ_ATTRS,
     TREE_ATTRS,
 )
 from fvs2py.enums import (
@@ -407,6 +416,202 @@ def test_species_mixin_species_attr_set_without_arr_raises_typeerror():
         TypeError, match="Must provide `arr` if `action` is 'set'"
     ):
         stub._species_attr(attr, FvsAttributeAccessor.SET, None)
+
+
+# ---------------------------------------------------------------------------
+# SVSMixin (fvsSVSDimSizes, fvsSVSObjData, fvsFFEAttrs)
+# ---------------------------------------------------------------------------
+
+
+class _SVSStub(SVSMixin):
+    """Host for :class:`SVSMixin` with Python stubs for the three FVS entry points."""
+
+    def __init__(
+        self,
+        *,
+        maxspecies: int = 3,
+        known_ffe: dict[str, np.ndarray] | None = None,
+        svs_counts: dict[str, int] | None = None,
+    ):
+        sc = svs_counts or {
+            STR_NSVSOBJS: 2,
+            STR_NDEADOBJS: 1,
+            STR_NCWDOBJS: 1,
+            STR_MXSVSOBJS: 100,
+            STR_MXDEADOBJS: 100,
+            STR_MXCWDOBJS: 100,
+        }
+        self._lib = _StubLib()
+        self._ffe_attrs = dict.fromkeys(FFE_FALLYRS_ATTRS)
+        self._svs_obj_attrs = dict.fromkeys(SVS_OBJ_ATTRS)
+        self.dims = {STR_MAXSPECIES: maxspecies}
+        self._known_ffe: dict[str, np.ndarray] = known_ffe or {}
+        self._known_svs: dict[str, np.ndarray] = {}
+        self.ffe_calls: list[dict] = []
+        self.svs_obj_calls: list[dict] = []
+        self._sc = sc
+
+        def fvs_svs_dim_sizes(nsv, nde, ncw, mxn, mxd, mxc):
+            nsv.value = sc[STR_NSVSOBJS]
+            nde.value = sc[STR_NDEADOBJS]
+            ncw.value = sc[STR_NCWDOBJS]
+            mxn.value = sc[STR_MXSVSOBJS]
+            mxd.value = sc[STR_MXDEADOBJS]
+            mxc.value = sc[STR_MXCWDOBJS]
+
+        def fvs_ffe_attrs(attr_name, nch, action, maxspecies_ptr, arr, rtncode):
+            name = bytes(ct.string_at(attr_name, nch.value)).decode()
+            act = bytes(ct.string_at(action, 3)).decode()
+            n = maxspecies_ptr.value
+            self.ffe_calls.append(
+                {"name": name, "action": act, "maxspecies": n}
+            )
+            if name not in FFE_FALLYRS_ATTRS:
+                rtncode.value = 1
+                return
+            if n != self.dims[STR_MAXSPECIES]:
+                rtncode.value = 3
+                return
+            if act == "get":
+                stored = self._known_ffe.get(name)
+                if stored is None:
+                    arr[:] = np.zeros(n, dtype=np.float64)
+                else:
+                    arr[:] = stored
+            else:
+                self._known_ffe[name] = np.array(arr, dtype=np.float64)
+            rtncode.value = 0
+
+        def fvs_svs_obj_data(attr_name, nch, action, nobjs, arr, rtncode):
+            name = bytes(ct.string_at(attr_name, nch.value)).decode()
+            act = bytes(ct.string_at(action, 3)).decode()
+            n = nobjs.value
+            self.svs_obj_calls.append({"name": name, "action": act, "nobjs": n})
+            if name not in SVS_OBJ_ATTRS:
+                rtncode.value = 1
+                return
+            if act == "get":
+                if name in self._known_svs:
+                    arr[:] = self._known_svs[name]
+                else:
+                    arr[:] = np.arange(n, dtype=np.float64)
+            else:
+                self._known_svs[name] = np.array(arr, dtype=np.float64).copy()
+            rtncode.value = 0
+
+        self._fvsSVSDimSizes = fvs_svs_dim_sizes
+        self._fvsFFEAttrs = fvs_ffe_attrs
+        self._fvsSVSObjData = fvs_svs_obj_data
+
+    def _invoke(self, name, /, **kwargs):
+        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
+
+
+def test_svs_mixin_svs_dim_sizes_returns_six_ints():
+    stub = _SVSStub()
+    d = stub.svs_dim_sizes
+    assert d[STR_NSVSOBJS] == 2
+    assert d[STR_NDEADOBJS] == 1
+    assert d[STR_NCWDOBJS] == 1
+    assert d[STR_MXSVSOBJS] == 100
+
+
+def test_svs_mixin_ffe_attr_unknown_name_raises_nameerror():
+    stub = _SVSStub()
+    with pytest.raises(NameError, match="Invalid variable requested"):
+        stub._ffe_attr("not-a-real-attr", FvsAttributeAccessor.GET)
+
+
+def test_svs_mixin_svs_obj_attr_unknown_name_raises_nameerror():
+    stub = _SVSStub()
+    with pytest.raises(NameError, match="Invalid variable requested"):
+        stub._svs_obj_attr("nope", FvsAttributeAccessor.GET)
+
+
+def test_svs_mixin_ffe_attr_set_without_arr_raises_typeerror():
+    stub = _SVSStub()
+    attr = next(iter(FFE_FALLYRS_ATTRS))
+    with pytest.raises(
+        TypeError, match="Must provide `arr` if `action` is 'set'"
+    ):
+        stub._ffe_attr(attr, FvsAttributeAccessor.SET, None)
+
+
+def test_svs_mixin_ffe_attr_set_with_wrong_shape_raises_valueerror():
+    stub = _SVSStub(maxspecies=3)
+    attr = next(iter(FFE_FALLYRS_ATTRS))
+    with pytest.raises(ValueError, match=r"same shape as `maxspecies` \(3,\)"):
+        stub._ffe_attr(attr, FvsAttributeAccessor.SET, np.zeros(shape=(5,)))
+
+
+def test_svs_mixin_get_ffe_attr_round_trips_through_stub():
+    attr = next(iter(FFE_FALLYRS_ATTRS))
+    values = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+    stub = _SVSStub(maxspecies=3, known_ffe={attr: values})
+    out = stub.get_ffe_attr(attr)
+    assert out.tolist() == [1.0, 2.0, 3.0]
+    assert stub.ffe_calls[-1] == {
+        "name": attr,
+        "action": "get",
+        "maxspecies": 3,
+    }
+
+
+def test_svs_mixin_set_ffe_attr_round_trips_through_stub():
+    attr = next(iter(FFE_FALLYRS_ATTRS))
+    stub = _SVSStub(maxspecies=3)
+    stub.set_ffe_attr(attr, np.array([10.0, 20.0, 30.0], dtype=np.float64))
+    assert stub._known_ffe[attr].tolist() == [10.0, 20.0, 30.0]
+    assert stub.ffe_calls[-1] == {
+        "name": attr,
+        "action": "set",
+        "maxspecies": 3,
+    }
+    assert stub.get_ffe_attr(attr).tolist() == [10.0, 20.0, 30.0]
+
+
+def test_svs_mixin_get_svs_obj_attr_live():
+    # Default _SVSStub: 2 live, 1 dead, 1 cwd (``xloc`` is length nsvsobjs).
+    stub = _SVSStub()
+    out = stub.get_svs_obj_attr("xloc")
+    assert out.tolist() == [0.0, 1.0]
+    assert stub.svs_obj_calls[-1]["name"] == "xloc"
+    assert stub.svs_obj_calls[-1]["nobjs"] == 2
+
+
+def test_svs_mixin_svs_obj_set_get_round_trip():
+    stub = _SVSStub()
+    v = np.array([3.0, 4.0], dtype=np.float64)
+    stub.set_svs_obj_attr("xloc", v)
+    assert stub.get_svs_obj_attr("xloc").tolist() == [3.0, 4.0]
+
+
+@pytest.mark.parametrize("attr", FFE_FALLYRS_ATTRS)
+def test_svs_mixin_ffe_fallyrs_get_set_round_trip(attr):
+    stub = _SVSStub(maxspecies=4)
+    vals = np.array([1.5, 2.5, 3.5, 4.5], dtype=np.float64)
+    stub.set_ffe_attr(attr, vals)
+    assert stub.get_ffe_attr(attr).tolist() == vals.tolist()
+
+
+def test_svs_mixin_ffe_attrs_property_warns_when_all_zero():
+    stub = _SVSStub(maxspecies=2)
+    with pytest.warns(
+        UserWarning, match="No FFE fallyrs attributes initialized yet"
+    ):
+        result = stub.ffe_attrs
+    assert list(result.columns) == list(FFE_FALLYRS_ATTRS)
+    assert result.shape == (2, len(FFE_FALLYRS_ATTRS))
+    assert result.isna().all().all()
+
+
+def test_svs_mixin_ffe_attrs_property_returns_populated_frame():
+    attr = FFE_FALLYRS_ATTRS[0]
+    values = np.array([7.0, 8.0], dtype=np.float64)
+    stub = _SVSStub(maxspecies=2, known_ffe={attr: values})
+    result = stub.ffe_attrs
+    assert list(result.columns) == list(FFE_FALLYRS_ATTRS)
+    assert result[attr].tolist() == [7.0, 8.0]
 
 
 # ---------------------------------------------------------------------------

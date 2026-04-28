@@ -30,8 +30,15 @@ from fvs2py.constants import (
     STR_MAXPLOTS,
     STR_MAXSPECIES,
     STR_MAXTREES,
+    STR_MXCWDOBJS,
+    STR_MXDEADOBJS,
+    STR_MXSVSOBJS,
+    STR_NCWDOBJS,
     STR_NCYCLES,
+    STR_NDEADOBJS,
+    STR_NOBJS,
     STR_NPLOTS,
+    STR_NSVSOBJS,
     STR_NTREES,
 )
 from fvs2py.enums import FvsAttrReturnCode
@@ -508,6 +515,79 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(
                 name="arr",
                 ctype=ndptr_f64(STR_NTREES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=attr_accessor_policy,
+    ),
+    "fvsFFEAttrs": Routine(
+        params=(
+            Param(name="attr_name", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="action", ctype=ct.c_char_p),
+            Param(name=STR_MAXSPECIES, ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="arr",
+                ctype=ndptr_f64(STR_MAXSPECIES),
+                intent=Intent.INOUT,
+            ),
+            Param(
+                name="rtncode",
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_policy=attr_accessor_policy,
+    ),
+    "fvsSVSDimSizes": Routine(
+        params=(
+            Param(
+                name=STR_NSVSOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_NDEADOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_NCWDOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_MXSVSOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_MXDEADOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+            Param(
+                name=STR_MXCWDOBJS,
+                ctype=ct.POINTER(ct.c_int),
+                intent=Intent.OUT,
+            ),
+        ),
+        rc_param=None,
+    ),
+    "fvsSVSObjData": Routine(
+        params=(
+            Param(name="attr_name", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="action", ctype=ct.c_char_p),
+            Param(name=STR_NOBJS, ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="arr",
+                ctype=ndptr_f64(STR_NOBJS),
                 intent=Intent.INOUT,
             ),
             Param(

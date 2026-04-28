@@ -1,4 +1,5 @@
 STR_C_CONTIGUOUS = "C_CONTIGUOUS"
+# core forest vegetation simulator attribute names
 STR_MAXCYCLES = "maxcycles"
 STR_MAXPLOTS = "maxplots"
 STR_MAXSPECIES = "maxspecies"
@@ -6,6 +7,14 @@ STR_MAXTREES = "maxtrees"
 STR_NCYCLES = "ncycles"
 STR_NPLOTS = "nplots"
 STR_NTREES = "ntrees"
+# stand visualization system attribute names
+STR_NSVSOBJS = "nsvsobjs"
+STR_NDEADOBJS = "ndeadobjs"
+STR_NCWDOBJS = "ncwdobjs"
+STR_MXSVSOBJS = "mxsvsobjs"
+STR_MXDEADOBJS = "mxdeadobjs"
+STR_MXCWDOBJS = "mxcwdobjs"
+STR_NOBJS = "nobjs"
 
 STAND_CN_COLUMN_NAME = "stand_cn"
 STAND_ID_COLUMN_NAME = "stand_id"
@@ -107,6 +116,47 @@ SPECIES_ATTRS = (
     "spccf",
     "spsdi",
     "spsiteindx",
+)
+
+FFE_FALLYRS_ATTRS = (
+    "fallyrs0",
+    "fallyrs1",
+    "fallyrs2",
+    "fallyrs3",
+    "fallyrs4",
+    "fallyrs5",
+)
+
+# ``fvsSVSObjData`` (live 3D objects, standing dead snags, and coarse
+# woody debris). Length of each array is the corresponding current
+# count from ``fvsSVSDimSizes``.
+SVS_LIVE_OBJ_ATTRS = (
+    "objtype",
+    "objindex",
+    "xloc",
+    "yloc",
+)
+SVS_SNAG_OBJ_ATTRS = (
+    "snagdbh",
+    "snaglen",
+    "snagyear",
+    "snagspp",
+    "snagfdir",
+    "snagstat",
+    "snagwt0",
+    "snagwt1",
+    "snagwt2",
+    "snagwt3",
+)
+SVS_CWD_OBJ_ATTRS = (
+    "cwddia",
+    "cwdlen",
+    "cwdpil",
+    "cwddir",
+    "cwdwt",
+)
+SVS_OBJ_ATTRS: tuple[str, ...] = (
+    SVS_LIVE_OBJ_ATTRS + SVS_SNAG_OBJ_ATTRS + SVS_CWD_OBJ_ATTRS
 )
 
 EVMON_ATTRS = (
