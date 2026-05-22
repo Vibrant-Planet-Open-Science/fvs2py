@@ -34,7 +34,8 @@ def test_fvs_build(variant: FvsVariant, tmp_path: Path):
 
     keyfile = f"{tmp_path}/{variant}_buildtest.key"
     keyfile_content = (
-        importlib.resources.files("fvs2py.tests.keyfiles")
+        importlib.resources
+        .files("fvs2py.tests.keyfiles")
         .joinpath(f"{variant}.key")
         .read_text()
     )

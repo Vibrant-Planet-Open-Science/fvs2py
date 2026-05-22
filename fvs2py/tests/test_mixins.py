@@ -463,9 +463,11 @@ class _SVSStub(SVSMixin):
             name = bytes(ct.string_at(attr_name, nch.value)).decode()
             act = bytes(ct.string_at(action, 3)).decode()
             n = maxspecies_ptr.value
-            self.ffe_calls.append(
-                {"name": name, "action": act, "maxspecies": n}
-            )
+            self.ffe_calls.append({
+                "name": name,
+                "action": act,
+                "maxspecies": n,
+            })
             if name not in FFE_FALLYRS_ATTRS:
                 rtncode.value = 1
                 return
@@ -674,15 +676,13 @@ def test_trees_mixin_trees_property_warns_and_returns_none_when_empty():
 
 def test_trees_mixin_add_trees_rejects_missing_columns():
     stub = _TreesStub(maxtrees=10, nplots=1, species_indices=(1,))
-    df = pd.DataFrame(
-        {
-            "dbh": [1.0],
-            "species": [1.0],
-            "ht": [1.0],
-            "cratio": [1.0],
-            "plot": [1.0],
-        }
-    )
+    df = pd.DataFrame({
+        "dbh": [1.0],
+        "species": [1.0],
+        "ht": [1.0],
+        "cratio": [1.0],
+        "plot": [1.0],
+    })
     with pytest.raises(
         ValueError, match=r"missing required column\(s\) \['tpa'\]"
     ):
@@ -691,32 +691,28 @@ def test_trees_mixin_add_trees_rejects_missing_columns():
 
 def test_trees_mixin_add_trees_rejects_null_values():
     stub = _TreesStub(maxtrees=10, nplots=1, species_indices=(1,))
-    df = pd.DataFrame(
-        {
-            "dbh": [1.0, None],
-            "species": [1.0, 1.0],
-            "ht": [1.0, 1.0],
-            "cratio": [1.0, 1.0],
-            "plot": [1.0, 1.0],
-            "tpa": [1.0, 1.0],
-        }
-    )
+    df = pd.DataFrame({
+        "dbh": [1.0, None],
+        "species": [1.0, 1.0],
+        "ht": [1.0, 1.0],
+        "cratio": [1.0, 1.0],
+        "plot": [1.0, 1.0],
+        "tpa": [1.0, 1.0],
+    })
     with pytest.raises(ValueError, match="No null values allowed"):
         stub.add_trees(df)
 
 
 def test_trees_mixin_add_trees_rejects_when_no_plots_loaded():
     stub = _TreesStub(maxtrees=10, nplots=0, species_indices=(1,))
-    df = pd.DataFrame(
-        {
-            "dbh": [1.0],
-            "species": [1.0],
-            "ht": [1.0],
-            "cratio": [1.0],
-            "plot": [1.0],
-            "tpa": [1.0],
-        }
-    )
+    df = pd.DataFrame({
+        "dbh": [1.0],
+        "species": [1.0],
+        "ht": [1.0],
+        "cratio": [1.0],
+        "plot": [1.0],
+        "tpa": [1.0],
+    })
     with pytest.raises(RuntimeError, match="No inventory plots loaded yet."):
         stub.add_trees(df)
 
@@ -772,14 +768,12 @@ class _EventStub(EventMixin):
                 rtncode.value = 0
 
         def fvs_add_activity(year, code, params, nparams, rtncode):
-            self.activity_calls.append(
-                {
-                    "year": year.value,
-                    "code": code.value,
-                    "params": np.asarray(params).copy(),
-                    "nparams": nparams.value,
-                }
-            )
+            self.activity_calls.append({
+                "year": year.value,
+                "code": code.value,
+                "params": np.asarray(params).copy(),
+                "nparams": nparams.value,
+            })
             rtncode.value = self._add_activity_rc
 
         self._fvsEvmonAttr = fvs_evmon_attr

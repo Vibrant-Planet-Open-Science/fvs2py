@@ -31,4 +31,4 @@ jobs:
             -w /workspaces/fvs2py \
             -e PYTHONPATH=/workspaces/fvs2py \
             ${{ env.CI_IMAGE }} \
-            python -m pytest .
+            bash -c 'uv sync --frozen --extra dev && uv run pytest .'

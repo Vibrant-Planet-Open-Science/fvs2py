@@ -13,7 +13,8 @@ from fvs2py.keyfile import (
 )
 
 SO_KEYFILE = (
-    importlib.resources.files("fvs2py.tests.keyfiles")
+    importlib.resources
+    .files("fvs2py.tests.keyfiles")
     .joinpath("SO.key")
     .read_text()
 )

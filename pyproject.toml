@@ -70,6 +70,9 @@ exclude = [
 line-length = 80
 indent-width = 4
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
 select = ["A", "AIR", "ARG", "ASYNC", "BLE",  "C4", "COM", "D",  "DJ", "DTZ", "E", "EM", "EXE", "F", "FA", "FBT", "FIX", "G", "I", "ICN", "INP", "INT", "ISC", "NPY201", "PD", "PIE", "PT", "PYI", "Q", "RET", "RSE", "SIM", "SLF", "SLOT", "T10", "T20", "TD", "TID", "UP", "W", "YTT"]
 ignore = ["COM812", "D100", "D104", "D105", "D107", "D203", "D213", "D215", "D400", "D401", "D404", "D406", "D407", "D408", "D409", "D413", "E501", "FBT001", "FBT002", "FIX002", "G004", "ISC001", "TD003", "ARG002", "ARG004", "FBT001",  "FBT002", "PIE796", "PT018", "PYI024", "PYI041", "SIM102", "SIM115", "SIM117", "SLF001"]
