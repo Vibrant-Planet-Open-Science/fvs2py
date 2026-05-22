@@ -22,6 +22,7 @@ dependencies = [
 dev = [
     "ipykernel==7.2.0",
     "mypy==2.1.0",
+    "nbval==0.11.0",
     "pandas-stubs==3.0.0.260204",
     "pre-commit==4.6.0",
     "pytest-mock==3.15.1",
