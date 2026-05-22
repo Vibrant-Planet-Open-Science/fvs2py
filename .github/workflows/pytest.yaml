@@ -2,6 +2,9 @@ name: Pytest with Docker
 
 on: [pull_request]
 
+permissions:
+  contents: read
+
 env:
   FVS_TAG: FS2026.1
   CI_IMAGE: fvs2py-ci:dev
@@ -32,3 +35,85 @@ jobs:
             -e PYTHONPATH=/workspaces/fvs2py \
             ${{ env.CI_IMAGE }} \
             bash -c 'uv sync --frozen --extra dev && uv run pytest .'
+
+  nbval:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Fetch PR base commit
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}"
+
+      - name: List changed notebooks
+        id: notebooks
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git rev-parse --verify --quiet "${BASE_SHA}^{commit}" >/dev/null; then
+            echo "Base commit ${BASE_SHA} is not available after fetch." >&2
+            exit 1
+          fi
+          if ! git rev-parse --verify --quiet "${HEAD_SHA}^{commit}" >/dev/null; then
+            echo "Head commit ${HEAD_SHA} is not available after checkout." >&2
+            exit 1
+          fi
+
+          if ! git diff -z --name-only --diff-filter=AM \
+            "${BASE_SHA}...${HEAD_SHA}" -- '*.ipynb' > /tmp/changed-notebooks; then
+            echo "git diff failed for ${BASE_SHA}...${HEAD_SHA}" >&2
+            exit 1
+          fi
+          mapfile -d '' -t notebooks < /tmp/changed-notebooks
+
+          if [ "${#notebooks[@]}" -eq 0 ]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "No notebooks changed in this PR; skipping nbval."
+            exit 0
+          fi
+
+          printf 'Changed notebooks:\n'
+          printf -- ' - %s\n' "${notebooks[@]}"
+          printf '%s\0' "${notebooks[@]}" > "${GITHUB_WORKSPACE}/.ci-changed-notebooks"
+
+          echo "skip=false" >> "${GITHUB_OUTPUT}"
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.notebooks.outputs.skip != 'true'
+
+      - uses: docker/build-push-action@v6
+        if: steps.notebooks.outputs.skip != 'true'
+        with:
+          context: .
+          target: dev
+          tags: ${{ env.CI_IMAGE }}
+          load: true
+          build-args: FVS_TAG=${{ env.FVS_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run nbval-lax on changed notebooks
+        if: steps.notebooks.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspaces/fvs2py" \
+            -w /workspaces/fvs2py \
+            -e PYTHONPATH=/workspaces/fvs2py \
+            ${{ env.CI_IMAGE }} \
+            bash -c '
+              set -euo pipefail
+              uv sync --frozen --extra dev
+              mapfile -d "" -t notebooks < /workspaces/fvs2py/.ci-changed-notebooks
+              exec uv run pytest --nbval-lax "${notebooks[@]}"
+            '
