@@ -9,7 +9,6 @@ from typing import Any, ParamSpec, TypeVar, cast
 
 P = ParamSpec("P")
 T = TypeVar("T")
-ClassT = TypeVar("ClassT", bound=type)
 
 
 def load_dll(dll_path: str | os.PathLike) -> ct.CDLL:
@@ -142,7 +141,7 @@ class fvs_property:
         return type(self)(self.fget, fset)
 
 
-def no_fvs_library_required(func: Callable[P, T]) -> Callable[P, T]:
+def no_fvs_library_required[**P, T](func: Callable[P, T]) -> Callable[P, T]:
     """Mark a method so `class_requires_fvs_library` leaves it unwrapped.
 
     Use this to opt a pure-Python helper out of the automatic ``_lib``-loaded
@@ -160,7 +159,7 @@ def no_fvs_library_required(func: Callable[P, T]) -> Callable[P, T]:
     return func
 
 
-def class_requires_fvs_library(cls: ClassT) -> ClassT:
+def class_requires_fvs_library[ClassT: type](cls: ClassT) -> ClassT:
     """Decorator enforcing `function_requires_fvs_library` for all public methods.
 
     Walks ``cls.__mro__`` so that public methods contributed by mixins receive
