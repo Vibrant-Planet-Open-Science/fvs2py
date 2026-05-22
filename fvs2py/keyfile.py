@@ -29,9 +29,11 @@ not start with a letter (data rows, format specs, comment bodies) produce no
 match.
 """
 
-SINGLE_STAND_REQUIRED: Mapping[str, int] = MappingProxyType(
-    {"STDIDENT": 1, "PROCESS": 1, "STOP": 1}
-)
+SINGLE_STAND_REQUIRED: Mapping[str, int] = MappingProxyType({
+    "STDIDENT": 1,
+    "PROCESS": 1,
+    "STOP": 1,
+})
 """Keywords that must appear exactly this many times in a single-stand keyfile."""
 
 

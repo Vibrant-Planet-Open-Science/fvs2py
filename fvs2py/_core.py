@@ -33,7 +33,8 @@ class FvsCore:
         self.lib_path: Path = Path(os.path.abspath(lib_path))
         self._lib: ct.CDLL | None = None
         self.variant: str = (
-            os.path.basename(self.lib_path)
+            os.path
+            .basename(self.lib_path)
             .split(".")[0]
             .split("FVS")[-1]
             .upper()
@@ -95,13 +96,11 @@ class FvsCore:
             setattr(self, f"_{name}", func)
 
         if missing:
-            msg = " ".join(
-                [
-                    ", ".join(missing),
-                    "are needed routines that are not available in library, "
-                    "(maybe they weren't exported when library was built)",
-                ]
-            )
+            msg = " ".join([
+                ", ".join(missing),
+                "are needed routines that are not available in library, "
+                "(maybe they weren't exported when library was built)",
+            ])
             raise ImportError(msg)
 
     def _invoke(self, name: str, /, **kwargs: Any) -> Any:

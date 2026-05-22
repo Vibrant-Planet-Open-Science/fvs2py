@@ -692,9 +692,9 @@ _RAW_ROUTINES: dict[str, Routine] = {
 }
 
 
-FVS_ROUTINES: Mapping[str, Routine] = MappingProxyType(
-    {k: replace(v, name=k) for k, v in _RAW_ROUTINES.items()}
-)
+FVS_ROUTINES: Mapping[str, Routine] = MappingProxyType({
+    k: replace(v, name=k) for k, v in _RAW_ROUTINES.items()
+})
 """Immutable registry of FVS routine call descriptions.
 
 Keyed by the un-mangled FVS routine name (matching :data:`NEEDED_ROUTINES`).
