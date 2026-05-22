@@ -1,18 +1,23 @@
 {
     "name": "fvs2py Dev Container",
     "build": {
-        "dockerfile": "Dockerfile",
-        "context": ".."
+        "dockerfile": "../Dockerfile",
+        "context": "..",
+        "target": "dev",
+        "args": {
+            "FVS_TAG": "FS2026.1"
+        }
     },
-    "remoteUser": "${localEnv:USER}",
+    "remoteUser": "fvs2py-dev",
     "updateRemoteUserUID": true,
+    "remoteEnv": {
+        "PYTHONPATH": "${containerWorkspaceFolder}"
+    },
     "features": {
         "ghcr.io/devcontainers/features/common-utils": {
-            "user": "${localEnv:USER}",
+            "username": "fvs2py-dev",
             "installNano": true,
             "installZsh": true,
-            "installOhMyZsh": true,
-            "installOhMyZshConfig": true,
             "configureZshAsDefaultShell": true
         }
     },
@@ -56,6 +61,6 @@
         "--name",
         "fvs2py-dev"
     ],
-    "postCreateCommand": "pip install -e . && pre-commit install",
+    "postCreateCommand": "pre-commit install",
     "postStartCommand": "git config --global core.trustctime false && git config --global core.checkStat minimal"
 }

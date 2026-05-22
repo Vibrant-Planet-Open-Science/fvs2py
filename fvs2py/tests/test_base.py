@@ -25,7 +25,7 @@ from fvs2py.enums import (
     FvsVariant,
 )
 
-TEST_DLL = "/usr/local/lib/FVSso.so"
+TEST_DLL = "/usr/local/lib/libFVSso.so"
 TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
     "SO.key"
 )
@@ -321,7 +321,7 @@ def test_summary(fvs, keyfile):
 
 @pytest.mark.parametrize("variant", FvsVariant)
 def test_species_codes(variant):
-    fvs = FVS(f"/usr/local/lib/FVS{variant.lower()}.so")
+    fvs = FVS(f"/usr/local/lib/libFVS{variant.lower()}.so")
     dims = fvs.dims
     max_species = dims[STR_MAXSPECIES]
 
@@ -332,7 +332,7 @@ def test_species_codes(variant):
 
 @pytest.mark.parametrize("variant", FvsVariant)
 def test_species_attrs(variant, keyfile, recwarn):
-    fvs = FVS(f"/usr/local/lib/FVS{variant.lower()}.so")
+    fvs = FVS(f"/usr/local/lib/libFVS{variant.lower()}.so")
 
     # warning should be raised if run hasn't been started
     fvs.species_attrs
