@@ -6,7 +6,7 @@ permissions:
   contents: read
 
 env:
-  FVS_TAG: FS2026.1
+  FVS_TAG: FS2026.2
   CI_IMAGE: fvs2py-ci:dev
 
 jobs:
@@ -15,9 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
 
-      - uses: docker/build-push-action@v6
+      - name: Check uv.lock is up to date
+        run: uv lock --check
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
         with:
           context: .
           target: dev
@@ -87,10 +94,10 @@ jobs:
 
           echo "skip=false" >> "${GITHUB_OUTPUT}"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.notebooks.outputs.skip != 'true'
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         if: steps.notebooks.outputs.skip != 'true'
         with:
           context: .
