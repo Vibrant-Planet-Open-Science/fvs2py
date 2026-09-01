@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fvs2py"
-version = "0.1.1"
+version = "0.2.0"
 description = "Python wrapper for the Forest Vegetation Simulator API."
 authors = [
     { name = "David Diaz", email = "ddiaz@vibranplanet.net" }
