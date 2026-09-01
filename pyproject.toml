@@ -9,7 +9,7 @@ description = "Python wrapper for the Forest Vegetation Simulator API."
 authors = [
     { name = "David Diaz", email = "ddiaz@vibranplanet.net" }
 ]
-license = "CC-BY-NC-SA-4.0"
+license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.12"
