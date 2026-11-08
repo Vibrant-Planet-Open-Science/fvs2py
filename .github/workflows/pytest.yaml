@@ -6,7 +6,7 @@ permissions:
   contents: read
 
 env:
-  FVS_TAG: FS2026.2
+  FVS_TAG: 2027.1.0
   CI_IMAGE: fvs2py-ci:dev
 
 jobs:

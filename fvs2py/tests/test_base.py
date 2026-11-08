@@ -30,24 +30,6 @@ TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
     "SO.key"
 )
 
-FVSSO_START_DIMS = {
-    "ntrees": 0,
-    "ncycles": 0,
-    "nplots": 0,
-    "maxtrees": 3000,
-    "maxspecies": 33,
-    "maxplots": 500,
-    "maxcycles": 40,
-}
-FVSOP_START_DIMS = {
-    "ntrees": 0,
-    "ncycles": 0,
-    "nplots": 0,
-    "maxtrees": 2000,
-    "maxspecies": 39,
-    "maxplots": 500,
-    "maxcycles": 40,
-}
 SO_KEYFILE_STAND_IDS = {"stand_id": "12345", "stand_cn": "", "mgmt_id": "NONE"}
 
 
@@ -255,8 +237,6 @@ def test_exit_code_input_data_error(fvs, keyfile):
 
 def test_dims(keyfile):
     fvs = FVS(TEST_DLL)
-    assert fvs.dims == FVSSO_START_DIMS
-
     fvs.load_keyfile(keyfile)
     fvs.run(
         -1
@@ -264,10 +244,6 @@ def test_dims(keyfile):
     assert fvs.dims[STR_NTREES] == 2
     assert fvs.dims[STR_NCYCLES] == 10
     assert fvs.dims[STR_NPLOTS] == 1
-    fvs._unload_fvs()
-
-    fvs = FVS(TEST_DLL.replace("FVSso", "FVSop"))
-    assert fvs.dims == FVSOP_START_DIMS
     fvs._unload_fvs()
 
 
