@@ -1,9 +1,9 @@
-"""Unit tests for helpers in :mod:`fvs2py.common`.
+"""Unit tests for helpers in `fvs2py.common`.
 
-These tests exercise the descriptor protocol of :class:`fvs2py.common.fvs_property`
-without loading the real FVS shared library. A sentinel ``_StubLib`` class stands
+These tests exercise the descriptor protocol of `fvs2py.common.fvs_property`
+without loading the real FVS shared library. A sentinel `_StubLib` class stands
 in for the attribute the guard checks, so the descriptor behaves as it would on
-a fully-initialized :class:`fvs2py.FVS` instance.
+a fully-initialized `fvs2py.FVS` instance.
 """
 
 from __future__ import annotations

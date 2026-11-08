@@ -1,10 +1,10 @@
-"""Unit tests for :mod:`fvs2py._routines`.
+"""Unit tests for `fvs2py._routines`.
 
 The invoker dispatches ctypes calls without a loaded FVS library by relying
 on plain Python callables as stand-ins for resolved foreign functions. These
 tests exercise dispatch order, dynamic ctype resolution, OUT-param auto
 allocation, return-code policy dispatch, and kwarg validation. Registry
-invariants are asserted against the module-level :data:`FVS_ROUTINES`
+invariants are asserted against the module-level `FVS_ROUTINES`
 mapping and stay vacuously true until later PRs populate it.
 """
 
@@ -32,10 +32,10 @@ from fvs2py.enums import FvsAttrReturnCode
 
 
 class _Stub:
-    """Python callable usable as a ctypes ``_FuncPointer`` stand-in.
+    """Python callable usable as a ctypes `_FuncPointer` stand-in.
 
-    Records positional args from the most recent call, permits ``argtypes``
-    and ``restype`` attribute assignment (mirroring the ctypes API), and
+    Records positional args from the most recent call, permits `argtypes`
+    and `restype` attribute assignment (mirroring the ctypes API), and
     optionally runs a writer to populate OUT buffers.
     """
 
@@ -366,7 +366,7 @@ def test_call_out_param_in_kwargs_raises_typeerror():
 # ---------------------------------------------------------------------------
 # FVS_ROUTINES registry invariants
 #
-# Each iterates over ``FVS_ROUTINES.items()`` and thus applies to every
+# Each iterates over `FVS_ROUTINES.items()` and thus applies to every
 # entry contributed by a mixin migration.
 # ---------------------------------------------------------------------------
 
@@ -440,11 +440,11 @@ def test_post_init_allows_rc_param_without_rc_policy():
 # ---------------------------------------------------------------------------
 # End-to-end: attr-accessor shape exercised via an inline Routine
 #
-# Composes every piece (Intent, dynamic ``ndptr_f64`` factory,
-# ``attr_accessor_policy``, OUT auto-allocation, kwarg dispatch) without
-# depending on a registry entry. Once :data:`FVS_ROUTINES` carries
-# ``fvsTreeAttr`` (or similar), this pattern is exactly what the mixin call
-# site will hand to :meth:`FvsCore._invoke`.
+# Composes every piece (Intent, dynamic `ndptr_f64` factory,
+# `attr_accessor_policy`, OUT auto-allocation, kwarg dispatch) without
+# depending on a registry entry. Once `FVS_ROUTINES` carries
+# `fvsTreeAttr` (or similar), this pattern is exactly what the mixin call
+# site will hand to `FvsCore._invoke`.
 # ---------------------------------------------------------------------------
 
 

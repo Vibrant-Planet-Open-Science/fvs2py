@@ -1,9 +1,9 @@
 """Symbolic names for FVS integer status codes and string accessors.
 
-All status-code enums are :class:`IntEnum` subclasses, so their members compare
+All status-code enums are `IntEnum` subclasses, so their members compare
 equal to the corresponding raw integers returned/accepted by FVS. This keeps
-call-site ergonomics unchanged (``fvs.itrncd == FvsItrnCode.NOT_STARTED`` works
-alongside ``fvs.itrncd == -1``) while giving callers readable constants.
+call-site ergonomics unchanged (`fvs.itrncd == FvsItrnCode.NOT_STARTED` works
+alongside `fvs.itrncd == -1`) while giving callers readable constants.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ class FvsAttributeAccessor(StrEnum):
 
 
 class FvsItrnCode(IntEnum):
-    """Return-code values reported by ``fvsGetRtnCode`` / :attr:`FVS.itrncd`."""
+    """Return-code values reported by `fvsGetRtnCode` / `FVS.itrncd`."""
 
     NOT_STARTED = -1
     GOOD_RUNNING_STATE = 0
@@ -58,7 +58,7 @@ class FvsItrnCode(IntEnum):
 
 
 class FvsExitCode(IntEnum):
-    """Exit-code values reported by ``fvsGetICCode`` / :attr:`FVS.exit_code`."""
+    """Exit-code values reported by `fvsGetICCode` / `FVS.exit_code`."""
 
     NO_ERROR = 0
     INPUT_DATA_ERROR = 1
@@ -68,10 +68,10 @@ class FvsExitCode(IntEnum):
 
 
 class FvsRestartCode(IntEnum):
-    """Restart-code values reported by ``fvsGetRestartCode``.
+    """Restart-code values reported by `fvsGetRestartCode`.
 
     Indicates where inside a cycle FVS stopped after the most recent call to
-    :meth:`FVS.run`.
+    `FVS.run`.
     """
 
     INITIALIZED = 0
@@ -85,9 +85,9 @@ class FvsRestartCode(IntEnum):
 
 
 class FvsStopPointCode(IntEnum):
-    """Stop-point-code values accepted by ``fvsSetStoppointCodes``.
+    """Stop-point-code values accepted by `fvsSetStoppointCodes`.
 
-    Selects where inside a cycle FVS should pause during :meth:`FVS.run`.
+    Selects where inside a cycle FVS should pause during `FVS.run`.
     """
 
     EVERY_STOP_LOCATION = -1
@@ -104,11 +104,11 @@ class FvsStopPointCode(IntEnum):
 class FvsAttrReturnCode(IntEnum):
     """Return-code values reported by attribute-accessor FVS routines.
 
-    Produced by ``fvsSpeciesAttr``, ``fvsTreeAttr``, and sibling routines with
-    the same convention in the trailing ``rtncode`` parameter. Each member
-    carries a ``message`` attribute describing the condition, suitable for
+    Produced by `fvsSpeciesAttr`, `fvsTreeAttr`, and sibling routines with
+    the same convention in the trailing `rtncode` parameter. Each member
+    carries a `message` attribute describing the condition, suitable for
     use in an error message. Codes 2 and 3 are only reported by
-    ``fvsTreeAttr``; they're documented on the shared enum so a single
+    `fvsTreeAttr`; they're documented on the shared enum so a single
     policy can cover every attr accessor.
     """
 
@@ -128,7 +128,7 @@ class FvsAttrReturnCode(IntEnum):
             message: Human-readable description of the return code.
 
         Returns:
-            A new :class:`FvsAttrReturnCode` member with ``message`` attached.
+            A new `FvsAttrReturnCode` member with `message` attached.
         """
         obj = int.__new__(cls, value)
         obj._value_ = value
@@ -293,10 +293,10 @@ FvsActivity = (
 )
 """Union of every per-extension FVS activity enum.
 
-Any :class:`IntEnum` member from the extension-scoped activity enums is a
-valid :class:`FvsActivity`. Callers pass a member from the appropriate
-extension enum (``FvsBaseActivity.SALVAGE`` vs. ``FvsFireAndFuelsActivity.SALVAGE``);
-``int(activity)`` unwraps it to the underlying FVS code for the library
+Any `IntEnum` member from the extension-scoped activity enums is a
+valid `FvsActivity`. Callers pass a member from the appropriate
+extension enum (`FvsBaseActivity.SALVAGE` vs. `FvsFireAndFuelsActivity.SALVAGE`);
+`int(activity)` unwraps it to the underlying FVS code for the library
 call.
 """
 
@@ -304,7 +304,7 @@ call.
 class FvsSimulationState(StrEnum):
     """Python-side state of the FVS simulation lifecycle.
 
-    Tracked on ``FVS._state`` so that :meth:`FVS.run` can guard against
+    Tracked on `FVS._state` so that `FVS.run` can guard against
     re-entrant invocation and so callers (or future batch helpers) can reason
     about whether a simulation is idle, in-flight, finished, or has failed.
     These values are opaque identifiers; they do not correspond to any FVS

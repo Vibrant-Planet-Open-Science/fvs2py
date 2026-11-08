@@ -1,4 +1,4 @@
-"""SVS/FFE API: ``fvsSVSDimSizes``, ``fvsSVSObjData``, and ``fvsFFEAttrs``."""
+"""SVS/FFE API: `fvsSVSDimSizes`, `fvsSVSObjData`, and `fvsFFEAttrs`."""
 
 from __future__ import annotations
 
@@ -40,13 +40,13 @@ class SVSMixin:
 
     This mixin groups FVS entry points used for 3D/SVS object geometry and
     the Fire and Fuels Extension per-species snag crown fall-year vectors
-    (``fallyrs0``..``fallyrs5`` via ``fvsFFEAttrs``). FFE *stand-level*
-    compute variables (e.g. ``torchidx``, ``crbaseht``) remain in
-    :class:`fvs2py._mixins.events.EventMixin` and ``fvsEvmonAttr``.
+    (`fallyrs0`..`fallyrs5` via `fvsFFEAttrs`). FFE *stand-level*
+    compute variables (e.g. `torchidx`, `crbaseht`) remain in
+    `fvs2py._mixins.events.EventMixin` and `fvsEvmonAttr`.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke`, ``dims``
-    from :class:`StandMixin`, and buffers ``_ffe_attrs`` and
-    ``_svs_obj_attrs`` from ``FVS._initialize_attributes``.
+    Assumes the composed class provides `FvsCore._invoke`, `dims`
+    from `StandMixin`, and buffers `_ffe_attrs` and
+    `_svs_obj_attrs` from `FVS._initialize_attributes`.
     """
 
     _invoke: Callable[..., Any]
@@ -56,16 +56,16 @@ class SVSMixin:
 
     @fvs_property
     def svs_dim_sizes(self) -> dict[str, int]:
-        """Current and max SVS object counts from ``fvsSVSDimSizes``.
+        """Current and max SVS object counts from `fvsSVSDimSizes`.
 
-        Keys: ``nsvsobjs``, ``ndeadobjs``, ``ncwdobjs`` (current counts) and
-        ``mxsvsobjs``, ``mxdeadobjs``, ``mxcwdobjs`` (capacity).
+        Keys: `nsvsobjs`, `ndeadobjs`, `ncwdobjs` (current counts) and
+        `mxsvsobjs`, `mxdeadobjs`, `mxcwdobjs` (capacity).
         """
         return self._invoke("fvsSVSDimSizes")
 
     @fvs_property
     def ffe_attrs(self) -> pd.DataFrame:
-        """DataFrame of per-species ``fallyrs0``..``fallyrs5`` (``fvsFFEAttrs``)."""
+        """DataFrame of per-species `fallyrs0`..`fallyrs5` (`fvsFFEAttrs`)."""
         for attr in self._ffe_attrs:
             _ = self.get_ffe_attr(attr)
 
@@ -80,21 +80,21 @@ class SVSMixin:
         return attrs
 
     def get_ffe_attr(self, attr: str) -> npt.NDArray[np.float64]:
-        """Get one ``fvsFFEAttrs`` fallyrs column (shape ``(maxspecies,)``)."""
+        """Get one `fvsFFEAttrs` fallyrs column (shape `(maxspecies,)`)."""
         self._ffe_attr(attr, FvsAttributeAccessor.GET)
         return self._ffe_attrs[attr]
 
     def set_ffe_attr(self, attr: str, arr: npt.NDArray[np.float64]) -> None:
-        """Set one ``fvsFFEAttrs`` fallyrs column (shape ``(maxspecies,)``)."""
+        """Set one `fvsFFEAttrs` fallyrs column (shape `(maxspecies,)`)."""
         return self._ffe_attr(attr, FvsAttributeAccessor.SET, arr)
 
     def get_svs_obj_attr(self, attr: str) -> npt.NDArray[np.float64]:
-        """Get one ``fvsSVSObjData`` array (length = current nsvs/ndead/ncwd)."""
+        """Get one `fvsSVSObjData` array (length = current nsvs/ndead/ncwd)."""
         self._svs_obj_attr(attr, FvsAttributeAccessor.GET)
         return self._svs_obj_attrs[attr]
 
     def set_svs_obj_attr(self, attr: str, arr: npt.NDArray[np.float64]) -> None:
-        """Set one ``fvsSVSObjData`` array; shape must match current count."""
+        """Set one `fvsSVSObjData` array; shape must match current count."""
         return self._svs_obj_attr(attr, FvsAttributeAccessor.SET, arr)
 
     def _ffe_attr(

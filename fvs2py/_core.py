@@ -17,17 +17,17 @@ class FvsCore:
     def __init__(self, lib_path: str | os.PathLike) -> None:
         """Load the FVS shared library and bind its needed routines.
 
-        Resolves each routine in :data:`NEEDED_ROUTINES` from the loaded
-        library, tolerating both the unix-style ``name_`` mangling and the
-        un-mangled ``name`` spelling, and assigns each to ``self._<name>``.
-        Argtypes/restype are applied per-call by :meth:`_invoke` via the
-        :data:`fvs2py._routines.FVS_ROUTINES` registry.
+        Resolves each routine in `NEEDED_ROUTINES` from the loaded
+        library, tolerating both the unix-style `name_` mangling and the
+        un-mangled `name` spelling, and assigns each to `self._<name>`.
+        Argtypes/restype are applied per-call by `_invoke` via the
+        `fvs2py._routines.FVS_ROUTINES` registry.
 
         Args:
             lib_path: Path to the FVS shared library.
 
         Raises:
-            ImportError: If one or more routines in :data:`NEEDED_ROUTINES`
+            ImportError: If one or more routines in `NEEDED_ROUTINES`
                 are not present or not callable on the loaded library.
         """
         self.lib_path: Path = Path(os.path.abspath(lib_path))
@@ -68,13 +68,13 @@ class FvsCore:
         self._resolve_routines()
 
     def _resolve_routines(self) -> None:
-        """Bind each needed FVS routine to ``self`` as a raw ``_FuncPointer``.
+        """Bind each needed FVS routine to `self` as a raw `_FuncPointer`.
 
-        For every name in :data:`NEEDED_ROUTINES`, look up the corresponding
-        foreign function on ``self._lib`` (trying the ``name_`` mangling
+        For every name in `NEEDED_ROUTINES`, look up the corresponding
+        foreign function on `self._lib` (trying the `name_` mangling
         first, then the un-mangled name) and assign the resolved function to
-        ``self._<name>``. Per-call argtypes/restype are applied by
-        :meth:`_invoke` using the :data:`fvs2py._routines.FVS_ROUTINES`
+        `self._<name>`. Per-call argtypes/restype are applied by
+        `_invoke` using the `fvs2py._routines.FVS_ROUTINES`
         registry; no static signature is applied here.
 
         Raises:
@@ -106,30 +106,30 @@ class FvsCore:
     def _invoke(self, name: str, /, **kwargs: Any) -> Any:
         """Dispatch a call to a registered FVS routine.
 
-        Looks up ``name`` in :data:`fvs2py._routines.FVS_ROUTINES`, resolves
-        the bound foreign function at ``self._<name>``, and hands off to
-        :meth:`fvs2py._routines.Routine.call` for argtype resolution, OUT
+        Looks up `name` in `fvs2py._routines.FVS_ROUTINES`, resolves
+        the bound foreign function at `self._<name>`, and hands off to
+        `fvs2py._routines.Routine.call` for argtype resolution, OUT
         buffer allocation, return-code policy dispatch, and result unwrap.
 
         Args:
             name: Un-mangled FVS routine name (the same key used by
-                :data:`NEEDED_ROUTINES`).
+                `NEEDED_ROUTINES`).
             **kwargs: Per-parameter values; see the relevant
-                :class:`fvs2py._routines.Routine` declaration for the
+                `fvs2py._routines.Routine` declaration for the
                 expected kwarg names.
 
         Returns:
-            Whatever :meth:`fvs2py._routines.Routine.call` returns for the
-            routine: ``None`` when there are no non-rc OUT params, an
+            Whatever `fvs2py._routines.Routine.call` returns for the
+            routine: `None` when there are no non-rc OUT params, an
             unwrapped scalar for a single OUT param, or a dict keyed by
             OUT-param name for multiple OUT params.
 
         Raises:
-            NotImplementedError: If ``name`` is not registered in
-                :data:`FVS_ROUTINES` (either a typo or the routine has not
+            NotImplementedError: If `name` is not registered in
+                `FVS_ROUTINES` (either a typo or the routine has not
                 been migrated to the registry yet).
             AttributeError: If the corresponding foreign function has not
-                been resolved on ``self``.
+                been resolved on `self`.
         """
         try:
             routine = FVS_ROUTINES[name]
@@ -140,7 +140,7 @@ class FvsCore:
         return routine.call(func, **kwargs)
 
     def _load_fvs(self) -> None:
-        """Load the FVS shared library into ``self._lib``, unloading any prior handle."""
+        """Load the FVS shared library into `self._lib`, unloading any prior handle."""
         if self._lib:
             logging.debug("Unloading existing library.")
             self._unload_fvs()

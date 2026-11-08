@@ -19,10 +19,10 @@ from fvs2py.enums import FvsAttributeAccessor
 class SpeciesMixin:
     """Expose species metadata and per-species attribute get/set helpers.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
-    dispatch and the ``_species_attrs`` mapping seeded by
-    ``FVS._initialize_attributes``. Uses ``self.dims`` from
-    :class:`StandMixin`.
+    Assumes the composed class provides `FvsCore._invoke` for registry
+    dispatch and the `_species_attrs` mapping seeded by
+    `FVS._initialize_attributes`. Uses `self.dims` from
+    `StandMixin`.
     """
 
     _invoke: Callable[..., Any]

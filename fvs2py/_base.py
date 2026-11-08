@@ -1,4 +1,4 @@
-"""Public :class:`FVS` class, assembled from focused mixins over :class:`FvsCore`."""
+"""Public `FVS` class, assembled from focused mixins over `FvsCore`."""
 
 from __future__ import annotations
 
@@ -40,9 +40,9 @@ class FVS(
     """Main class for interacting with FVS at runtime.
 
     Public behavior is contributed by the seven mixins
-    (:class:`EventMixin`, :class:`SVSMixin`, :class:`TreesMixin`,
-    :class:`SpeciesMixin`, :class:`StandMixin`, :class:`SimulationMixin`,
-    :class:`ControlMixin`); this class just initializes the Python-side
+    (`EventMixin`, `SVSMixin`, `TreesMixin`,
+    `SpeciesMixin`, `StandMixin`, `SimulationMixin`,
+    `ControlMixin`); this class just initializes the Python-side
     buffers they rely on and wires the library-reload hook.
     """
 
@@ -58,7 +58,7 @@ class FVS(
     def _initialize_attributes(self) -> None:
         """Reset all Python-side buffers and state tracked alongside FVS.
 
-        Called both at construction and after :meth:`_reload_fvs` so the
+        Called both at construction and after `_reload_fvs` so the
         mixins can rely on a known set of pre-initialized attributes.
         """
         self.keyfile_path = None
