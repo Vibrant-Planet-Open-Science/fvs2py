@@ -1,4 +1,4 @@
-ARG FVS_TAG=FS2026.2
+ARG FVS_TAG=2027.1.0
 ARG FVS_IMAGE=ghcr.io/vibrant-planet-open-science/usfs-fvs:${FVS_TAG}
 
 FROM ${FVS_IMAGE} AS base
