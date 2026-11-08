@@ -161,15 +161,22 @@ class SimulationMixin:
         Unlike `run`, this method does not follow a `DONE_RUNNING_STAND`
         restart code with a flush call. It simply returns once FVS either
         pauses at a stop point or reports the stand-done marker, leaving
-        output finalization, stand-advance, and termination detection
-        (`itrncd == FvsItrnCode.FINISHED_ALL_STANDS`) in the caller's
-        hands. This is the low-level building block for driving multi-stand
-        keyfiles, where the caller typically loops:
+        output finalization, stand-advance, and termination detection in
+        the caller's hands. This is the low-level building block for
+        driving multi-stand keyfiles, where the caller typically loops:
 
             fvs.load_keyfile(path, check_single_stand=False)
-            while fvs.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
+            while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
                 fvs.run_batch()
                 # optionally inspect per-stand outputs here
+            if fvs.itrncd == FvsItrnCode.ERROR or fvs.exit_code:
+                ...  # handle the failure
+
+        The loop ends at `FINISHED_ALL_STANDS` or `ERROR`. Don't loop on
+        `itrncd != FINISHED_ALL_STANDS`: after an FVS error, `itrncd`
+        stays at `ERROR` and that loop never ends. Some errors (e.g. FVS
+        can't open an output file) set `itrncd` to `ERROR` but leave
+        `exit_code` at 0, so check both.
 
         Stop-point semantics are identical to `run`: pass non-zero
         `stop_point_code` / `stop_point_year` to pause mid-cycle, then

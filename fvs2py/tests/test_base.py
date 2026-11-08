@@ -157,6 +157,19 @@ def test_run_batch_does_not_auto_flush(fvs, keyfile):
     assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
 
 
+def test_run_batch_does_not_clear_fvs_error(fvs, keyfile):
+    # Force an FVS error: put a directory where FVS wants to write its
+    # .out file, so FVS can't create it.
+    keyfile.with_suffix(".out").mkdir()
+    fvs.load_keyfile(keyfile, check_single_stand=False)
+    assert fvs.itrncd == FvsItrnCode.ERROR
+
+    # run_batch must leave the error in place. The loop in its docstring
+    # relies on this to stop after an error.
+    fvs.run_batch()
+    assert fvs.itrncd == FvsItrnCode.ERROR
+
+
 def test_load_keyfile_multi_stand_raises_with_bypass_hint(
     fvs, keyfile, tmp_path
 ):
