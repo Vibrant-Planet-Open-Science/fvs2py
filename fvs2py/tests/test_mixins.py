@@ -1,10 +1,10 @@
-"""Stub-based unit tests for the focused mixins under ``fvs2py._mixins``.
+"""Stub-based unit tests for the focused mixins under `fvs2py._mixins`.
 
 These tests exercise each mixin's Python-side logic without loading the real
 FVS shared library. Where a mixin method has to invoke a ctypes foreign
 function, the test substitutes a plain Python callable that mutates its
-output-pointer arguments (the ``call_out`` helper passes freshly-allocated
-``ct.c_int`` objects, which look identical to a Python stub).
+output-pointer arguments (the `call_out` helper passes freshly-allocated
+`ct.c_int` objects, which look identical to a Python stub).
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ class _StubLib:
 class _StandStub(StandMixin, ControlMixin):
     """Minimal StandMixin host that uses Python-callable stubs for ctypes calls.
 
-    Also inherits ControlMixin so ``stop_point_code`` resolves as a property.
+    Also inherits ControlMixin so `stop_point_code` resolves as a property.
     """
 
     def __init__(self):
@@ -151,11 +151,11 @@ def test_stand_mixin_stand_ids_returns_decoded_values():
 class _SimulationStub(SimulationMixin):
     """Minimal SimulationMixin host with writer-based ctypes stubs.
 
-    The ``_fvs`` stub is a no-op so :meth:`SimulationMixin.run` can exercise
-    its control flow without a real FVS library. :meth:`set_stop_point_codes`
+    The `_fvs` stub is a no-op so `SimulationMixin.run` can exercise
+    its control flow without a real FVS library. `set_stop_point_codes`
     is stubbed to a no-op as well; tests that want to observe or override it
-    assign directly on the instance. ``_invoke`` mirrors
-    :meth:`fvs2py._core.FvsCore._invoke` so the mixin exercises the real
+    assign directly on the instance. `_invoke` mirrors
+    `fvs2py._core.FvsCore._invoke` so the mixin exercises the real
     registry against the attribute-level stubs bound below.
     """
 
@@ -424,7 +424,7 @@ def test_species_mixin_species_attr_set_without_arr_raises_typeerror():
 
 
 class _SVSStub(SVSMixin):
-    """Host for :class:`SVSMixin` with Python stubs for the three FVS entry points."""
+    """Host for `SVSMixin` with Python stubs for the three FVS entry points."""
 
     def __init__(
         self,
@@ -573,7 +573,7 @@ def test_svs_mixin_set_ffe_attr_round_trips_through_stub():
 
 
 def test_svs_mixin_get_svs_obj_attr_live():
-    # Default _SVSStub: 2 live, 1 dead, 1 cwd (``xloc`` is length nsvsobjs).
+    # Default _SVSStub: 2 live, 1 dead, 1 cwd (`xloc` is length nsvsobjs).
     stub = _SVSStub()
     out = stub.get_svs_obj_attr("xloc")
     assert out.tolist() == [0.0, 1.0]
@@ -623,9 +623,9 @@ def test_svs_mixin_ffe_attrs_property_returns_populated_frame():
 
 class _TreesStub(TreesMixin):
     """Minimal TreesMixin host with enough Python-side state to exercise the
-    validation branches before any call reaches :meth:`_invoke`.
+    validation branches before any call reaches `_invoke`.
 
-    The ``dims`` dict and ``species_codes`` frame are instance attributes so
+    The `dims` dict and `species_codes` frame are instance attributes so
     individual tests can shape the scenario (empty stand, single-plot stand,
     etc.) without standing up the full StandMixin/SpeciesMixin stack.
     """
@@ -723,13 +723,13 @@ def test_trees_mixin_add_trees_rejects_when_no_plots_loaded():
 
 
 class _EventStub(EventMixin):
-    """Minimal EventMixin host with scenario-shaped ``_fvsEvmonAttr`` and
-    ``_fvsAddActivity`` writer stubs. Tests toggle ``keyfile``,
-    ``stop_point_code``, and ``dims`` to exercise each guard branch.
+    """Minimal EventMixin host with scenario-shaped `_fvsEvmonAttr` and
+    `_fvsAddActivity` writer stubs. Tests toggle `keyfile`,
+    `stop_point_code`, and `dims` to exercise each guard branch.
 
-    The fvsEvmonAttr stub records every GET by ``attr_name`` and writes
+    The fvsEvmonAttr stub records every GET by `attr_name` and writes
     the corresponding value into the caller's INOUT buffer; unknown
-    names drop an rc=1 to surface through ``attr_accessor_policy``.
+    names drop an rc=1 to surface through `attr_accessor_policy`.
     The fvsAddActivity stub records year, code, params, and nparams for
     test-side assertions and accepts a configurable return code.
     """

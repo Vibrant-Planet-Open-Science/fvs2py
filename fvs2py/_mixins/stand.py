@@ -22,10 +22,10 @@ from fvs2py.constants import (
 class StandMixin:
     """Expose stand-level FVS outputs: dimensions, identifiers, summary table.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
-    dispatch and the Python-side buffers ``_stand_id``, ``_stand_cn``,
-    ``_mgmt_id`` (initialized by ``FVS._initialize_attributes``). ``keyfile``
-    and ``stop_point_code`` come from :class:`ControlMixin`.
+    Assumes the composed class provides `FvsCore._invoke` for registry
+    dispatch and the Python-side buffers `_stand_id`, `_stand_cn`,
+    `_mgmt_id` (initialized by `FVS._initialize_attributes`). `keyfile`
+    and `stop_point_code` come from `ControlMixin`.
     """
 
     _invoke: Callable[..., Any]
@@ -47,7 +47,7 @@ class StandMixin:
         Raises:
             AttributeError: If no keyfile has been loaded.
             RuntimeError: If inventory data has not yet been loaded (i.e.
-                :meth:`run` has not been called).
+                `run` has not been called).
         """
         if self.keyfile is None:
             msg = "Keyfile not loaded yet."

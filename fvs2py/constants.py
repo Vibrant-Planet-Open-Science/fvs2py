@@ -127,9 +127,9 @@ FFE_FALLYRS_ATTRS = (
     "fallyrs5",
 )
 
-# ``fvsSVSObjData`` (live 3D objects, standing dead snags, and coarse
+# `fvsSVSObjData` (live 3D objects, standing dead snags, and coarse
 # woody debris). Length of each array is the corresponding current
-# count from ``fvsSVSDimSizes``.
+# count from `fvsSVSDimSizes`.
 SVS_LIVE_OBJ_ATTRS = (
     "objtype",
     "objindex",

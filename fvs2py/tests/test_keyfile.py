@@ -1,4 +1,4 @@
-"""Unit tests for ``fvs2py.keyfile`` — pure-Python, no FVS dependency."""
+"""Unit tests for `fvs2py.keyfile` — pure-Python, no FVS dependency."""
 
 from __future__ import annotations
 

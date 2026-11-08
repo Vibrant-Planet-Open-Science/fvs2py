@@ -15,7 +15,7 @@ T = TypeVar("T")
 def load_dll(dll_path: str | os.PathLike) -> ct.CDLL:
     """Loads a native FVS library.
 
-    Works on Linux (``.so``), Windows (``.dll``), and macOS (``.dylib``).
+    Works on Linux (`.so`), Windows (`.dll`), and macOS (`.dylib`).
     The caller supplies the full path including the file suffix.
 
     The FVS libraries are assumed to be statically linked, and loader search
@@ -37,7 +37,7 @@ def load_dll(dll_path: str | os.PathLike) -> ct.CDLL:
 def unload_dll(dll: ct.CDLL) -> None:
     """Unloads a native FVS library.
 
-    Uses ``FreeLibrary`` on Windows and ``dlclose`` elsewhere (Linux and
+    Uses `FreeLibrary` on Windows and `dlclose` elsewhere (Linux and
     macOS). On success the handle is zeroed so a repeat unload cannot hand
     a stale handle back to the loader.
 
@@ -56,13 +56,13 @@ def unload_dll(dll: ct.CDLL) -> None:
 
 
 def _free_library(handle: int) -> None:
-    """Release a loaded library handle with the Windows ``FreeLibrary``.
+    """Release a loaded library handle with the Windows `FreeLibrary`.
 
     Args:
-        handle: the ``_handle`` of the loaded library.
+        handle: the `_handle` of the loaded library.
 
     Raises:
-        RuntimeError: if ``FreeLibrary`` reports failure.
+        RuntimeError: if `FreeLibrary` reports failure.
     """
     kernel32 = ct.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
     free_library = kernel32.FreeLibrary
@@ -75,13 +75,13 @@ def _free_library(handle: int) -> None:
 
 
 def _dlclose(handle: int) -> None:
-    """Release a loaded library handle with the POSIX ``dlclose``.
+    """Release a loaded library handle with the POSIX `dlclose`.
 
     Args:
-        handle: the ``_handle`` of the loaded library.
+        handle: the `_handle` of the loaded library.
 
     Raises:
-        RuntimeError: if ``dlclose`` returns non-zero.
+        RuntimeError: if `dlclose` returns non-zero.
     """
     close_func = ct.CDLL(None).dlclose
     close_func.argtypes = (ct.c_void_p,)
@@ -118,20 +118,20 @@ def function_requires_fvs_library() -> Callable[
 class fvs_property:
     """Property descriptor with an FVS-library-loaded guard.
 
-    Behaves like the built-in :class:`property`, but before invoking either the
-    getter or the setter it checks that the instance has a non-``None`` ``_lib``
-    attribute and raises :class:`RuntimeError` otherwise. Guarding here prevents
+    Behaves like the built-in `property`, but before invoking either the
+    getter or the setter it checks that the instance has a non-`None` `_lib`
+    attribute and raises `RuntimeError` otherwise. Guarding here prevents
     the segmentation fault that would result from calling into an unloaded FVS
     shared library.
 
-    Supports the standard ``@<name>.setter`` fluent syntax, mirroring the
-    stdlib :class:`property`. Setters receive the same ``_lib``-loaded guard
+    Supports the standard `@<name>.setter` fluent syntax, mirroring the
+    stdlib `property`. Setters receive the same `_lib`-loaded guard
     as getters.
 
     Args:
-        fget: Getter function taking ``self`` and returning the property
+        fget: Getter function taking `self` and returning the property
             value.
-        fset: Optional setter function taking ``self`` and the new value.
+        fset: Optional setter function taking `self` and the new value.
     """
 
     def __init__(
@@ -145,7 +145,7 @@ class fvs_property:
         self.__name__ = fget.__name__ if fget is not None else ""
 
     def _check_lib(self, obj: Any, action: str) -> None:
-        """Raise if ``obj._lib`` is missing or ``None``."""
+        """Raise if `obj._lib` is missing or `None`."""
         if not hasattr(obj, "_lib") or obj._lib is None:
             msg = (
                 f"FVS library not loaded, unable to "
@@ -172,17 +172,17 @@ class fvs_property:
         self.fset(obj, value)
 
     def setter(self, fset: Callable[[Any, Any], None]) -> fvs_property:
-        """Return a new :class:`fvs_property` combining ``self.fget`` with ``fset``.
+        """Return a new `fvs_property` combining `self.fget` with `fset`.
 
-        Supports the ``@<name>.setter`` fluent syntax used with the stdlib
-        :class:`property`.
+        Supports the `@<name>.setter` fluent syntax used with the stdlib
+        `property`.
 
         Args:
-            fset: Setter function taking ``self`` and a new value.
+            fset: Setter function taking `self` and a new value.
 
         Returns:
-            A new :class:`fvs_property` sharing this descriptor's getter and
-            using ``fset`` as its setter.
+            A new `fvs_property` sharing this descriptor's getter and
+            using `fset` as its setter.
         """
         return type(self)(self.fget, fset)
 
@@ -190,16 +190,16 @@ class fvs_property:
 def no_fvs_library_required[**P, T](func: Callable[P, T]) -> Callable[P, T]:
     """Mark a method so `class_requires_fvs_library` leaves it unwrapped.
 
-    Use this to opt a pure-Python helper out of the automatic ``_lib``-loaded
-    guard applied by :func:`class_requires_fvs_library`. The marker is read
+    Use this to opt a pure-Python helper out of the automatic `_lib`-loaded
+    guard applied by `class_requires_fvs_library`. The marker is read
     from the underlying function object during class decoration.
 
     Args:
         func: Instance method to leave unguarded.
 
     Returns:
-        The same function object with a ``_fvs_library_required`` attribute set
-        to ``False``.
+        The same function object with a `_fvs_library_required` attribute set
+        to `False`.
     """
     func._fvs_library_required = False  # type: ignore[attr-defined]
     return func
@@ -208,25 +208,25 @@ def no_fvs_library_required[**P, T](func: Callable[P, T]) -> Callable[P, T]:
 def class_requires_fvs_library[ClassT: type](cls: ClassT) -> ClassT:
     """Decorator enforcing `function_requires_fvs_library` for all public methods.
 
-    Walks ``cls.__mro__`` so that public methods contributed by mixins receive
-    the same ``_lib``-loaded guard that methods defined directly on ``cls``
+    Walks `cls.__mro__` so that public methods contributed by mixins receive
+    the same `_lib`-loaded guard that methods defined directly on `cls`
     get. The first occurrence of each public name wins (respecting MRO), so
-    overrides on ``cls`` are not shadowed by same-named methods on a base.
+    overrides on `cls` are not shadowed by same-named methods on a base.
 
     Skips:
-      - names that start with ``_`` (private / dunder).
-      - non-callables (e.g. ``property`` descriptors, which are expected to
-        carry their own guard via :func:`fvs_property`).
-      - ``staticmethod`` / ``classmethod`` descriptors — they have no ``self``
+      - names that start with `_` (private / dunder).
+      - non-callables (e.g. `property` descriptors, which are expected to
+        carry their own guard via `fvs_property`).
+      - `staticmethod` / `classmethod` descriptors — they have no `self`
         to inspect and their own guard would have to be different.
-      - methods marked with :func:`no_fvs_library_required`.
+      - methods marked with `no_fvs_library_required`.
       - methods already wrapped by a previous call (idempotent).
 
     Args:
         cls: The class to decorate.
 
     Returns:
-        The same class, with public methods replaced by ``_lib``-guarded
+        The same class, with public methods replaced by `_lib`-guarded
         wrappers.
     """
     wrapped_names: set[str] = set()
@@ -258,16 +258,16 @@ def call_out(
 ) -> Any:
     """Call a ctypes function, auto-allocating output pointer args.
 
-    Allocates one fresh ctypes object of each type in ``out_types``, appends
-    them (in order) after ``in_args`` when calling ``func``, and returns the
-    unwrapped ``.value`` of each output.
+    Allocates one fresh ctypes object of each type in `out_types`, appends
+    them (in order) after `in_args` when calling `func`, and returns the
+    unwrapped `.value` of each output.
 
     Args:
         func: Resolved ctypes foreign function whose trailing parameters are
-            ``POINTER`` types corresponding to ``out_types``.
-        *in_args: Positional input arguments passed to ``func`` unchanged.
+            `POINTER` types corresponding to `out_types`.
+        *in_args: Positional input arguments passed to `func` unchanged.
         out_types: Ctypes scalar types to allocate as output parameters.
-            Defaults to a single ``ct.c_int`` output.
+            Defaults to a single `ct.c_int` output.
 
     Returns:
         The scalar value if exactly one output was requested, otherwise a

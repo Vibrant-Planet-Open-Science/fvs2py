@@ -18,11 +18,11 @@ from fvs2py.keyfile import validate_single_stand
 class ControlMixin:
     """Expose keyfile loading and stop-point configuration.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
-    dispatch, the ``_itrncd`` buffer, and the
-    ``_stop_point_code``/``_stop_point_year`` slots initialized by
-    ``FVS._initialize_attributes``. :meth:`run` on :class:`SimulationMixin`
-    is expected to call into :meth:`set_stop_point_codes`.
+    Assumes the composed class provides `FvsCore._invoke` for registry
+    dispatch, the `_itrncd` buffer, and the
+    `_stop_point_code`/`_stop_point_year` slots initialized by
+    `FVS._initialize_attributes`. `run` on `SimulationMixin`
+    is expected to call into `set_stop_point_codes`.
     """
 
     _invoke: Callable[..., Any]
@@ -51,8 +51,8 @@ class ControlMixin:
                 (tree heights and crown ratios, for example) and model
                 calibration (argument stptyr is ignored).
 
-        Assigning to this property delegates to :meth:`set_stop_point_codes`,
-        preserving the currently-configured ``stop_point_year`` (or ``0`` if
+        Assigning to this property delegates to `set_stop_point_codes`,
+        preserving the currently-configured `stop_point_year` (or `0` if
         year has not been set).
         """
         if self._stop_point_code is not None:
@@ -76,8 +76,8 @@ class ControlMixin:
         1 : Stop at every cycle.
         YYYY : A specific year during the simulation period.
 
-        Assigning to this property delegates to :meth:`set_stop_point_codes`,
-        preserving the currently-configured ``stop_point_code`` (or ``0`` if
+        Assigning to this property delegates to `set_stop_point_codes`,
+        preserving the currently-configured `stop_point_code` (or `0` if
         code has not been set).
         """
         if self._stop_point_year is not None:
@@ -101,22 +101,22 @@ class ControlMixin:
     ) -> None:
         """Set the keywordfile as a command-line argument to FVS.
 
-        If ``check_single_stand`` is true (the default), the keyfile text is
-        first passed to :func:`fvs2py.keyfile.validate_single_stand`; a keyfile
-        that describes zero or multiple stands raises :class:`ValueError`
+        If `check_single_stand` is true (the default), the keyfile text is
+        first passed to `fvs2py.keyfile.validate_single_stand`; a keyfile
+        that describes zero or multiple stands raises `ValueError`
         before FVS is invoked. Callers driving multi-stand runs via
-        :meth:`FVS.run_batch` must set ``check_single_stand=False`` to bypass
+        `FVS.run_batch` must set `check_single_stand=False` to bypass
         the guard.
 
         Args:
             keywordfile: Path to the FVS keyword file.
             check_single_stand: When true (default), require the keyfile to define
-                exactly one stand (one each of ``STDIDENT``, ``PROCESS``,
-                and ``STOP``).
+                exactly one stand (one each of `STDIDENT`, `PROCESS`,
+                and `STOP`).
 
         Raises:
-            ValueError: If ``check_single_stand`` is true and the keyfile
-                fails :func:`fvs2py.keyfile.validate_single_stand`.
+            ValueError: If `check_single_stand` is true and the keyfile
+                fails `fvs2py.keyfile.validate_single_stand`.
         """
         if self.itrncd != FvsItrnCode.NOT_STARTED:
             if self.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
@@ -183,8 +183,8 @@ class ControlMixin:
                YYYY : A specific year during the simulation period
 
         Raises:
-            ValueError: If ``stop_point_code`` is outside the range ``[-1, 7]``,
-                or if ``stop_point_year`` is provided without ``stop_point_code``.
+            ValueError: If `stop_point_code` is outside the range `[-1, 7]`,
+                or if `stop_point_year` is provided without `stop_point_code`.
         """
         if stop_point_code is not None:
             try:

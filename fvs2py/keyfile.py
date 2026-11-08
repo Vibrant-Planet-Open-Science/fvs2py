@@ -1,16 +1,16 @@
-"""Lightweight keyfile inspection helpers used by :class:`FVS.load_keyfile`.
+"""Lightweight keyfile inspection helpers used by `FVS.load_keyfile`.
 
 The only question this module is trying to answer is "does the keyfile appear
 to describe a single stand?". We choose to answer that question by requiring a
-keyfile to contain single instances of ``STDIDENT``, ``PROCESS``, and ``STOP``.
+keyfile to contain single instances of `STDIDENT`, `PROCESS`, and `STOP`.
 
 Known limitations:
 
-- ``COMMENT ... END`` blocks are not tracked. A free-form comment that
-  happens to begin a line with the literal string ``STDIDENT`` (or similar)
+- `COMMENT ... END` blocks are not tracked. A free-form comment that
+  happens to begin a line with the literal string `STDIDENT` (or similar)
   would be counted.
-- ``OPEN``-based include files are not followed; only the text of the
-  file passed directly to :meth:`FVS.load_keyfile` is inspected.
+- `OPEN`-based include files are not followed; only the text of the
+  file passed directly to `FVS.load_keyfile` is inspected.
 """
 
 from __future__ import annotations
@@ -61,8 +61,8 @@ def count_keywords(keyfile: str) -> dict[str, int]:
 def validate_single_stand(keyfile: str) -> None:
     """Verify a keyfile appears to describe a single-stand simulation.
 
-    Uses :func:`count_keywords` to check that each keyword in
-    :data:`SINGLE_STAND_REQUIRED` appears exactly the required number of
+    Uses `count_keywords` to check that each keyword in
+    `SINGLE_STAND_REQUIRED` appears exactly the required number of
     times. Missing or duplicated keywords are reported together in a single
     error.
 

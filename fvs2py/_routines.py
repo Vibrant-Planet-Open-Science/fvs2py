@@ -1,15 +1,15 @@
 """Declarative registry of FVS routine signatures + a thin invoker.
 
-Each FVS routine is described by a :class:`Routine` whose parameters are
-:class:`Param` records carrying a name, a ctypes type (static or a runtime
-factory closure over the call kwargs), and an :class:`Intent` flag indicating
-direction. :class:`Routine.call` resolves dynamic types, auto-allocates
-output buffers, assigns ``argtypes``/``restype`` on the resolved foreign
+Each FVS routine is described by a `Routine` whose parameters are
+`Param` records carrying a name, a ctypes type (static or a runtime
+factory closure over the call kwargs), and an `Intent` flag indicating
+direction. `Routine.call` resolves dynamic types, auto-allocates
+output buffers, assigns `argtypes`/`restype` on the resolved foreign
 function, invokes it, and dispatches any configured return-code policy.
 
 Mixin methods own Python-facing ergonomics and derive dependent args (e.g.
-``nattr = len(attr)``, ``ntrees = len(values)``) before handing a
-fully-specified kwarg dict to :meth:`FvsCore._invoke`. The registry itself
+`nattr = len(attr)`, `ntrees = len(values)`) before handing a
+fully-specified kwarg dict to `FvsCore._invoke`. The registry itself
 stays free of derivation or validation logic.
 """
 
@@ -45,12 +45,12 @@ from fvs2py.enums import FvsAttrReturnCode
 
 
 class Intent(Flag):
-    """Direction flag for a :class:`Param`.
+    """Direction flag for a `Param`.
 
-    ``IN`` parameters are supplied by callers as kwargs and passed through to
-    the foreign function unchanged. ``OUT`` parameters are auto-allocated by
+    `IN` parameters are supplied by callers as kwargs and passed through to
+    the foreign function unchanged. `OUT` parameters are auto-allocated by
     the invoker and returned to the caller; callers must not pass them.
-    ``INOUT`` (``IN | OUT``) parameters are caller-owned buffers that the
+    `INOUT` (`IN | OUT`) parameters are caller-owned buffers that the
     foreign function may read from and write into in place.
     """
 
@@ -68,12 +68,12 @@ class Param:
     """One parameter in an FVS routine's signature.
 
     Attributes:
-        name: Kwarg name used by :meth:`Routine.call`.
+        name: Kwarg name used by `Routine.call`.
         ctype: Either a ctypes type (static) or a callable that receives the
             call-site kwargs as scope and returns a concrete ctypes type.
-            Factories are typically closures produced by :func:`ndptr_f64` or
-            :func:`ndptr_intc`.
-        intent: Direction flag; see :class:`Intent`.
+            Factories are typically closures produced by `ndptr_f64` or
+            `ndptr_intc`.
+        intent: Direction flag; see `Intent`.
     """
 
     name: str
@@ -87,14 +87,14 @@ class Routine:
 
     Attributes:
         params: Parameters in Fortran declaration order.
-        restype: Ctypes return type, or ``None`` if the routine returns
+        restype: Ctypes return type, or `None` if the routine returns
             nothing (the usual case for FVS subroutines).
-        rc_param: Name of the return-code OUT parameter, or ``None`` if the
+        rc_param: Name of the return-code OUT parameter, or `None` if the
             routine does not report a return code.
         rc_policy: Callable invoked with the return-code integer after a
-            successful call; should raise on error and return ``None`` on OK.
+            successful call; should raise on error and return `None` on OK.
         name: Routine identifier used in error messages. Populated from the
-            :data:`FVS_ROUTINES` mapping key; construction-site entries may
+            `FVS_ROUTINES` mapping key; construction-site entries may
             leave it empty.
     """
 
@@ -109,10 +109,10 @@ class Routine:
 
         Catches structural misconfigurations that would otherwise surface as
         silently-skipped return-code validation at call time: declaring an
-        :attr:`rc_policy` without an :attr:`rc_param`, or pointing
-        :attr:`rc_param` at a name that isn't a declared :class:`Intent.OUT`
-        parameter. Return codes are write-only by convention, so ``INOUT``
-        and ``IN`` params are rejected as ``rc_param`` targets.
+        `rc_policy` without an `rc_param`, or pointing
+        `rc_param` at a name that isn't a declared `Intent.OUT`
+        parameter. Return codes are write-only by convention, so `INOUT`
+        and `IN` params are rejected as `rc_param` targets.
         """
         if self.rc_policy is None:
             return
@@ -128,22 +128,22 @@ class Routine:
             raise ValueError(msg)
 
     def call(self, func: Any, /, **kwargs: Any) -> Any:
-        """Dispatch a call to ``func`` using this routine's declarative shape.
+        """Dispatch a call to `func` using this routine's declarative shape.
 
-        Resolves any dynamic-type factories against ``kwargs``, auto-allocates
-        OUT buffers, assigns ``argtypes``/``restype`` on ``func``, invokes it
+        Resolves any dynamic-type factories against `kwargs`, auto-allocates
+        OUT buffers, assigns `argtypes`/`restype` on `func`, invokes it
         with positional args in declaration order, runs the configured return
         code policy (if any), and returns the OUT values.
 
         Args:
-            func: Resolved foreign function (ctypes ``_FuncPointer``) or a
+            func: Resolved foreign function (ctypes `_FuncPointer`) or a
                 Python callable compatible with the routine's call shape (used
                 by tests).
             **kwargs: One entry per non-OUT parameter.
 
         Returns:
-            ``None`` if the routine has no non-rc OUT params, the unwrapped
-            scalar value if it has exactly one, or a ``dict[name, value]`` if
+            `None` if the routine has no non-rc OUT params, the unwrapped
+            scalar value if it has exactly one, or a `dict[name, value]` if
             it has several.
 
         Raises:
@@ -215,19 +215,19 @@ class Routine:
     def _label(self) -> str:
         """Return a short identifier for error messages.
 
-        Prefers the registry-populated :attr:`name` when present; falls back
-        to a generic ``Routine(...)`` tag for routines constructed outside
+        Prefers the registry-populated `name` when present; falls back
+        to a generic `Routine(...)` tag for routines constructed outside
         the registry (e.g. in unit tests).
         """
         return self.name or "Routine"
 
 
 def _resolve_ctype(ctype: ParamType, scope: Scope) -> type:
-    """Return a concrete ctypes type, invoking ``ctype`` if it's a factory.
+    """Return a concrete ctypes type, invoking `ctype` if it's a factory.
 
-    Static types (classes like ``ct.c_int`` or an ``ndpointer`` subclass
-    produced by :func:`numpy.ctypeslib.ndpointer`) are returned unchanged.
-    Callables that are not types are invoked with ``scope`` and expected to
+    Static types (classes like `ct.c_int` or an `ndpointer` subclass
+    produced by `numpy.ctypeslib.ndpointer`) are returned unchanged.
+    Callables that are not types are invoked with `scope` and expected to
     return a ctypes type.
     """
     if isinstance(ctype, type):
@@ -236,12 +236,12 @@ def _resolve_ctype(ctype: ParamType, scope: Scope) -> type:
 
 
 def _unwrap(v: Any) -> int:
-    """Return the integer value of ``v``.
+    """Return the integer value of `v`.
 
-    Accepts either a plain int or a ctypes scalar with a ``.value``
+    Accepts either a plain int or a ctypes scalar with a `.value`
     attribute. Mixin methods sometimes have a dimension as a bare Python int
-    (``dims[STR_NTREES]``) and sometimes as a ctypes scalar
-    (``self._ntrees``). :func:`ndptr_f64` and :func:`ndptr_intc` factories
+    (`dims[STR_NTREES]`) and sometimes as a ctypes scalar
+    (`self._ntrees`). `ndptr_f64` and `ndptr_intc` factories
     call through this helper so either form is accepted at the call site.
     """
     return v.value if hasattr(v, "value") else int(v)
@@ -250,11 +250,11 @@ def _unwrap(v: Any) -> int:
 def ndptr_f64(
     *dim_keys: str, flags: str = STR_C_CONTIGUOUS
 ) -> Callable[[Scope], type]:
-    """Build a factory that resolves a contiguous ``float64`` ndpointer.
+    """Build a factory that resolves a contiguous `float64` ndpointer.
 
-    The returned factory reads each ``dim_keys`` entry from the call scope
-    (kwargs), unwraps ctypes scalars via :func:`_unwrap`, and returns an
-    ``np.ctypeslib.ndpointer`` subclass with the resolved shape.
+    The returned factory reads each `dim_keys` entry from the call scope
+    (kwargs), unwraps ctypes scalars via `_unwrap`, and returns an
+    `np.ctypeslib.ndpointer` subclass with the resolved shape.
     """
 
     def factory(scope: Scope) -> type:
@@ -269,10 +269,10 @@ def ndptr_f64(
 def ndptr_intc(
     *dim_keys: str, flags: str = STR_C_CONTIGUOUS
 ) -> Callable[[Scope], type]:
-    """Build a factory that resolves a contiguous ``intc`` ndpointer.
+    """Build a factory that resolves a contiguous `intc` ndpointer.
 
-    See :func:`ndptr_f64` for the shape-resolution semantics; this variant
-    targets C-int arrays, as used by ``fvsSummary``.
+    See `ndptr_f64` for the shape-resolution semantics; this variant
+    targets C-int arrays, as used by `fvsSummary`.
     """
 
     def factory(scope: Scope) -> type:
@@ -285,11 +285,11 @@ def ndptr_intc(
 
 
 def species_code_policy(rc: int) -> None:
-    """Raise :class:`IndexError` on ``fvsSpeciesCode``'s out-of-range signal.
+    """Raise `IndexError` on `fvsSpeciesCode`'s out-of-range signal.
 
-    The FVS API contract for ``fvsSpeciesCode`` is ``0`` = OK and ``1`` =
+    The FVS API contract for `fvsSpeciesCode` is `0` = OK and `1` =
     index is out of range. Any other value is treated as an unexpected
-    return code and surfaced as :class:`RuntimeError` so the caller does
+    return code and surfaced as `RuntimeError` so the caller does
     not silently proceed with a value they cannot interpret.
     """
     if rc == 0:
@@ -302,13 +302,13 @@ def species_code_policy(rc: int) -> None:
 
 
 def add_trees_policy(rc: int) -> None:
-    """Dispatch :class:`fvsAddTrees`'s documented return-code contract.
+    """Dispatch `fvsAddTrees`'s documented return-code contract.
 
-    The FVS API documents two codes for ``fvsAddTrees``: ``0`` = OK and
-    ``1`` = there was not enough room to store the new trees. The latter
-    is surfaced as :class:`ValueError` so callers can catch it alongside
+    The FVS API documents two codes for `fvsAddTrees`: `0` = OK and
+    `1` = there was not enough room to store the new trees. The latter
+    is surfaced as `ValueError` so callers can catch it alongside
     the mixin's own capacity pre-check. Any other value is treated as an
-    unexpected return code and raised as :class:`RuntimeError` so callers
+    unexpected return code and raised as `RuntimeError` so callers
     do not silently proceed.
     """
     if rc == 0:
@@ -321,15 +321,15 @@ def add_trees_policy(rc: int) -> None:
 
 
 def add_activity_policy(rc: int) -> None:
-    """Dispatch :class:`fvsAddActivity`'s rFVS-documented return-code contract.
+    """Dispatch `fvsAddActivity`'s rFVS-documented return-code contract.
 
-    The FVS API wiki does not document ``fvsAddActivity``'s return code,
-    but the rFVS reference binding specifies ``0`` = OK and ``1`` = some
+    The FVS API wiki does not document `fvsAddActivity`'s return code,
+    but the rFVS reference binding specifies `0` = OK and `1` = some
     error (cause unspecified). The error case is surfaced as
-    :class:`ValueError` so callers can catch it alongside the mixin's
+    `ValueError` so callers can catch it alongside the mixin's
     own pre-call guards (keyfile loaded, simulation started, etc.). Any
     other value is treated as unexpected and raised as
-    :class:`RuntimeError` so callers do not silently proceed.
+    `RuntimeError` so callers do not silently proceed.
     """
     if rc == 0:
         return
@@ -341,16 +341,16 @@ def add_activity_policy(rc: int) -> None:
 
 
 def attr_accessor_policy(rc: int) -> None:
-    """Raise if ``rc`` is not :attr:`FvsAttrReturnCode.OK`.
+    """Raise if `rc` is not `FvsAttrReturnCode.OK`.
 
-    Consumed by the ``rc_policy`` field on :class:`Routine` entries whose
+    Consumed by the `rc_policy` field on `Routine` entries whose
     return codes follow the canonical attr-accessor convention shared by
-    ``fvsSpeciesAttr``, ``fvsTreeAttr``, and similar routines.
-    :attr:`FvsAttrReturnCode.NAME_NOT_FOUND` surfaces as :class:`NameError`
+    `fvsSpeciesAttr`, `fvsTreeAttr`, and similar routines.
+    `FvsAttrReturnCode.NAME_NOT_FOUND` surfaces as `NameError`
     (a caller-supplied attribute name that FVS does not recognize); the
-    remaining documented codes surface as :class:`RuntimeError` with the
+    remaining documented codes surface as `RuntimeError` with the
     enum's canned message. Codes outside the known set also become a
-    :class:`RuntimeError`, surfaced via the generic "unrecognized" message.
+    `RuntimeError`, surfaced via the generic "unrecognized" message.
     """
     if rc == FvsAttrReturnCode.OK:
         return
@@ -697,8 +697,8 @@ FVS_ROUTINES: Mapping[str, Routine] = MappingProxyType({
 })
 """Immutable registry of FVS routine call descriptions.
 
-Keyed by the un-mangled FVS routine name (matching :data:`NEEDED_ROUTINES`).
-Entries are added as each mixin migrates to :meth:`FvsCore._invoke`; routines
-not (yet) described here remain resolvable through :class:`FvsCore` without
+Keyed by the un-mangled FVS routine name (matching `NEEDED_ROUTINES`).
+Entries are added as each mixin migrates to `FvsCore._invoke`; routines
+not (yet) described here remain resolvable through `FvsCore` without
 the registry applying a signature to them.
 """

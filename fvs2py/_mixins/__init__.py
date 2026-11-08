@@ -1,9 +1,9 @@
-"""Focused mixins that compose the :class:`fvs2py.FVS` public API.
+"""Focused mixins that compose the `fvs2py.FVS` public API.
 
 Each mixin owns a coherent slice of FVS functionality and assumes the instance
-already has ``self._lib`` plus the resolved ``_fvsXyz`` foreign-function
-attributes from :class:`fvs2py._core.FvsCore` and the Python-side buffers
-initialized by ``FVS._initialize_attributes``.
+already has `self._lib` plus the resolved `_fvsXyz` foreign-function
+attributes from `fvs2py._core.FvsCore` and the Python-side buffers
+initialized by `FVS._initialize_attributes`.
 """
 
 from fvs2py._mixins.control import ControlMixin

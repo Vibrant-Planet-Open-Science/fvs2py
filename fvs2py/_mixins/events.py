@@ -16,10 +16,10 @@ from fvs2py.enums import FvsActivity, FvsAttributeAccessor
 class EventMixin:
     """Expose Event Monitor variable access and FVS activity scheduling.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
-    dispatch, ``self.keyfile`` and ``self.stop_point_code`` from
-    :class:`ControlMixin`, ``self.dims`` from :class:`StandMixin`, and the
-    ``_evmon_attrs`` buffer seeded by ``FVS._initialize_attributes``.
+    Assumes the composed class provides `FvsCore._invoke` for registry
+    dispatch, `self.keyfile` and `self.stop_point_code` from
+    `ControlMixin`, `self.dims` from `StandMixin`, and the
+    `_evmon_attrs` buffer seeded by `FVS._initialize_attributes`.
     """
 
     _invoke: Callable[..., Any]
@@ -33,14 +33,14 @@ class EventMixin:
         """Return current values for every tracked Event Monitor variable.
 
         Iterates through the canonical names seeded from
-        :data:`fvs2py.constants.EVMON_ATTRS` plus any names registered via
-        :meth:`set_evmon_attr`, querying FVS for each and recording
-        ``None`` when FVS reports the name as not-found (``rtncode == 1``).
+        `fvs2py.constants.EVMON_ATTRS` plus any names registered via
+        `set_evmon_attr`, querying FVS for each and recording
+        `None` when FVS reports the name as not-found (`rtncode == 1`).
         This bulk-inspection view deliberately tolerates not-found names
         because the canonical list includes phase-specific variables that
         may have no value at the current stop point. For a strict
         raise-or-return contract on a single variable, use
-        :meth:`get_evmon_attr`.
+        `get_evmon_attr`.
         """
         out: dict[str, float | None] = {}
         for name in self._evmon_attrs:
@@ -55,16 +55,16 @@ class EventMixin:
 
         Args:
             attr: Name of the Event Monitor variable (canonical FVS name
-                or one defined at runtime via a keyfile ``COMPUTE``
-                statement or via :meth:`set_evmon_attr`).
+                or one defined at runtime via a keyfile `COMPUTE`
+                statement or via `set_evmon_attr`).
 
         Returns:
-            The variable's current value, or ``None`` if FVS has not
+            The variable's current value, or `None` if FVS has not
             advanced far enough in the current cycle for any value to be
-            reported (``ncycles == 0``).
+            reported (`ncycles == 0`).
 
         Raises:
-            NameError: If FVS does not recognize ``attr``.
+            NameError: If FVS does not recognize `attr`.
             KeyError: If no keyfile has been loaded.
             RuntimeError: If the simulation has not been started.
         """
@@ -73,11 +73,11 @@ class EventMixin:
     def set_evmon_attr(self, attr: str, val: int | float) -> None:
         """Set the value of a single Event Monitor variable.
 
-        If ``attr`` is not already tracked in the instance's known-names
-        cache, it is registered so subsequent :attr:`evmon_attrs`
+        If `attr` is not already tracked in the instance's known-names
+        cache, it is registered so subsequent `evmon_attrs`
         iterations include it. The Python-side cache is not treated as
         an authoritative whitelist: FVS itself decides whether the name
-        is valid and reports ``NameError`` via :func:`attr_accessor_policy`
+        is valid and reports `NameError` via `attr_accessor_policy`
         if it is not.
 
         Args:
@@ -85,7 +85,7 @@ class EventMixin:
             val: New value to assign.
 
         Raises:
-            NameError: If FVS does not recognize ``attr``.
+            NameError: If FVS does not recognize `attr`.
             KeyError: If no keyfile has been loaded.
             RuntimeError: If the simulation has not been started.
         """
@@ -103,7 +103,7 @@ class EventMixin:
 
         Allocates a fresh single-element float64 buffer for every call
         (FVS owns the authoritative value; the buffer is transient
-        working memory), runs the registered ``fvsEvmonAttr`` call, and
+        working memory), runs the registered `fvsEvmonAttr` call, and
         returns the scalar on GET. SET calls do not return a value.
         """
         if self.keyfile is None:
@@ -151,13 +151,13 @@ class EventMixin:
         Args:
             year: Simulation year when the activity should execute.
             activity: Activity to schedule. Accepts any member of the
-                per-extension activity enums (``FvsBaseActivity``,
-                ``FvsFireActivity``, etc.) or a raw FVS activity code as
+                per-extension activity enums (`FvsBaseActivity`,
+                `FvsFireActivity`, etc.) or a raw FVS activity code as
                 an integer.
             params: Iterable of numeric parameters for the activity.
-                ``None`` and an empty iterable both pass a length-zero
+                `None` and an empty iterable both pass a length-zero
                 buffer to FVS, which is only safe for activities that
-                take no parameters (e.g. ``FvsBaseActivity.TREELIST``).
+                take no parameters (e.g. `FvsBaseActivity.TREELIST`).
                 See the warning below.
 
         Raises:
@@ -165,18 +165,18 @@ class EventMixin:
             RuntimeError: If the simulation has not been started or no
                 inventory has been loaded.
             ValueError: If FVS reports a failure
-                (``fvsAddActivity`` rtncode == 1).
+                (`fvsAddActivity` rtncode == 1).
 
         Warning:
-            FVS does **not** validate the length of ``params`` against the
+            FVS does **not** validate the length of `params` against the
             chosen activity's documented signature. Internally,
-            ``fvsAddActivity`` copies the caller's values into a fixed
-            20-wide ``real(4)`` buffer and hands the whole buffer to
-            ``opadd``, which then interprets every slot the keyword's
-            schema expects. Any positions past ``len(params)`` contain
-            **uninitialized stack memory** that ``opadd`` will read as if
-            it were valid input. ``fvsAddActivity`` still returns
-            ``rtncode == 0`` in this case, so the failure is silent: the
+            `fvsAddActivity` copies the caller's values into a fixed
+            20-wide `real(4)` buffer and hands the whole buffer to
+            `opadd`, which then interprets every slot the keyword's
+            schema expects. Any positions past `len(params)` contain
+            **uninitialized stack memory** that `opadd` will read as if
+            it were valid input. `fvsAddActivity` still returns
+            `rtncode == 0` in this case, so the failure is silent: the
             activity may no-op, or it may be scheduled with nonsensical
             thresholds, depending on what happened to be on the stack at
             call time.
@@ -188,12 +188,12 @@ class EventMixin:
             <https://www.fs.usda.gov/fvs/documents/gtrs/FVSKeywords.pdf>`_
             for the field count and default values of each keyword.
 
-            For example, ``FvsBaseActivity.THINABA`` takes six fields
+            For example, `FvsBaseActivity.THINABA` takes six fields
             (residual BA, cut efficiency, min DBH, max DBH, min HT, max
             HT). Passing only a target residual basal area
-            (``params=[80]``) will silently misbehave. The correct call
+            (`params=[80]`) will silently misbehave. The correct call
             supplies every field explicitly, e.g.
-            ``params=[80.0, 1.0, 0.0, 999.0, 0.0, 999.0]``.
+            `params=[80.0, 1.0, 0.0, 999.0, 0.0, 999.0]`.
         """
         if self.keyfile is None:
             msg = "No keyfile loaded yet."

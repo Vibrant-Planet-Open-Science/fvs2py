@@ -24,10 +24,10 @@ from fvs2py.enums import FvsAttributeAccessor
 class TreesMixin:
     """Expose per-tree attribute access and bulk tree insertion.
 
-    Assumes the composed class provides :meth:`FvsCore._invoke` for registry
-    dispatch, ``self.dims`` from :class:`StandMixin`, ``self.species_codes``
-    from :class:`SpeciesMixin`, and the ``_tree_attrs`` / ``_trees`` buffers
-    seeded by ``FVS._initialize_attributes``.
+    Assumes the composed class provides `FvsCore._invoke` for registry
+    dispatch, `self.dims` from `StandMixin`, `self.species_codes`
+    from `SpeciesMixin`, and the `_tree_attrs` / `_trees` buffers
+    seeded by `FVS._initialize_attributes`.
     """
 
     _invoke: Callable[..., Any]
@@ -114,8 +114,8 @@ class TreesMixin:
 
         Args:
             tree_df (pd.DataFrame): trees to add. Must contain every column
-                listed in :data:`fvs2py.constants.ADD_TREES_COLS`
-                (``dbh``, ``species``, ``ht``, ``cratio``, ``plot``, ``tpa``),
+                listed in `fvs2py.constants.ADD_TREES_COLS`
+                (`dbh`, `species`, `ht`, `cratio`, `plot`, `tpa`),
                 with non-null float-coercible values for every row. Extra
                 columns are ignored.
         """
