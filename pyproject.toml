@@ -18,6 +18,9 @@ dependencies = [
     "pandas==3.0.3",
 ]
 
+[project.scripts]
+fvs = "fvs2py.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "ipykernel==7.2.0",
