@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,19 +7,37 @@ name = "fvs2py"
 version = "0.2.0"
 description = "Python wrapper for the Forest Vegetation Simulator API."
 authors = [
-    { name = "David Diaz", email = "ddiaz@vibranplanet.net" }
+    { name = "David Diaz", email = "ddiaz@vibrantplanet.net" }
 ]
 license = "MIT"
 license-files = ["LICENSE"]
+keywords = ["forest", "growth", "yield", "fvs"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed"
+]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "numpy==2.4.6",
-    "pandas==3.0.3",
+    "numpy>=2.1,<3",
+    "pandas>=3.0,<4",
 ]
 
 [project.scripts]
 fvs = "fvs2py.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Vibrant-Planet-Open-Science/fvs2py"
+Repository = "https://github.com/Vibrant-Planet-Open-Science/fvs2py"
+Issues = "https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues"
+Changelog = "https://github.com/Vibrant-Planet-Open-Science/fvs2py/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -36,6 +54,10 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["fvs2py*"]
+exclude = ["fvs2py.tests*"]
+
+[tool.setuptools.package-data]
+fvs2py = ["py.typed"]
 
 [tool.uv]
 
@@ -96,3 +118,4 @@ convention = "google"
 [tool.mypy]
 mypy_path = "fvs2py"
 files = "fvs2py"
+
