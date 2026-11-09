@@ -64,27 +64,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30  # must outlive the wait for PyPI approval
 
-  publish-testpypi:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/fvs2py
-    permissions:
-      id-token: write  # trusted publishing (OIDC)
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
-          print-hash: true
-
   publish-pypi:
-    needs: publish-testpypi
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: pypi  # requires reviewer approval
