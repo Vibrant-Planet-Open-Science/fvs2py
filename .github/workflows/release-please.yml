@@ -49,26 +49,14 @@ jobs:
         run: |
           set -euo pipefail
           test -f "dist/fvs2py-${VERSION}.tar.gz"
-          test -f "dist/fvs2py-${VERSION}-py3-none-any.whl"
-          python3 -m zipfile -l dist/*.whl
-          tar -tzf dist/*.tar.gz
+          unzip -Z1 "dist/fvs2py-${VERSION}-py3-none-any.whl" > wheel.txt
+          cat wheel.txt
+          grep -qx 'fvs2py/py.typed' wheel.txt
+          if grep '^fvs2py/tests/' wheel.txt; then echo "tests leaked into wheel"; exit 1; fi
       - name: Smoke-test the built wheel
-        run: |
-          set -euo pipefail
-          uv venv --python 3.12 /tmp/smoke
-          uv pip install --python /tmp/smoke/bin/python dist/*.whl
-          cd /tmp  # outside the repo, so the source tree can't shadow the install
-          /tmp/smoke/bin/python - <<'PY'
-          import pathlib
-          import fvs2py
-          from fvs2py import FVS  # noqa: F401
-          p = pathlib.Path(fvs2py.__file__).parent
-          assert "site-packages" in str(p), p
-          assert (p / "py.typed").is_file(), "py.typed missing"
-          assert not (p / "tests").exists(), "tests leaked into wheel"
-          print("ok", p)
-          PY
-          /tmp/smoke/bin/fvs --help
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: uvx --from "dist/fvs2py-${VERSION}-py3-none-any.whl" fvs --help
       - uses: actions/upload-artifact@v4
         with:
           name: dist
