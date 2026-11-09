@@ -13,7 +13,7 @@ We will then build upon the addition of new subroutines in Fortran that extend t
 pip install fvs2py
 ```
 
-fvs2py doesn't include the FVS libraries. You supply a compiled FVS variant library, either your own build or one from the [`usfs-fvs` container image](https://github.com/Vibrant-Planet-Open-Science/fvs-build/pkgs/container/usfs-fvs) (`ghcr.io/vibrant-planet-open-science/usfs-fvs`), which has every variant's library at `/usr/local/lib/FVS<variant>.so`.
+fvs2py is a wrapper, and doesn't currently ship with the FVS libraries included. You supply a compiled FVS variant library, either your own build, an official [USFS release](https://www.fs.usda.gov/fvs/software/variantinstaller.php) (currently Windows only), or one from the [`usfs-fvs` container image](https://github.com/Vibrant-Planet-Open-Science/fvs-build/pkgs/container/usfs-fvs) (`ghcr.io/vibrant-planet-open-science/usfs-fvs`), which has every variant's library at `/usr/local/lib/FVS<variant>.so`.  We're working to make updates to this package so that it can come with FVS libraries included and will keep this documentation up-to-date when those updates land.
 
 ## Usage
 
@@ -31,29 +31,12 @@ fvs.summary  # pandas DataFrame
 fvs2py also installs an `fvs` command that works like FVS executables do. These two commands are equivalent:
 
 ```bash
-FVSpn --keywordfile=name.key
-fvs --lib=/path/to/FVSpn.so --keywordfile=name.key
+FVSpn --keywordfile=name.key                        # FVS executable (PN variant)
+fvs --lib=/path/to/FVSpn.so --keywordfile=name.key  # fvs2py equivalent
 ```
 
 Most users of `fvs2py` should primarily expect to use the Python interface. The CLI is for running FVS in a separate process, so a crash by FVS doesn't take down your program and its output can be captured.
 
-## Development
+## Contributing
 
-A **dev container** is provided under [`.devcontainer/`](https://github.com/Vibrant-Planet-Open-Science/fvs2py/tree/main/.devcontainer) for VS Code. Open the repository with **Dev Containers: Reopen in Container** to get the `dev` Docker target, Python tooling, and extensions preconfigured. On first open, `postCreateCommand` runs `uv sync --frozen --extra dev` (creating a project-local `.venv` in your clone, gitignored) and installs pre-commit hooks. After pulling changes that touch the Dockerfile or lockfile, **rebuild** the dev container (or run `uv sync --extra dev` manually).
-
-The `.venv` directory lives on your host via the bind-mounted workspace (Linux binaries from the container). You can delete it and re-run `uv sync --extra dev` to recreate.
-
-If you don't want to use a dev container, install dev dependencies and hooks the same way before opening a pull request:
-
-```bash
-uv sync --extra dev
-uv run pre-commit install
-```
-
-Run tests locally or inside the dev container:
-
-```bash
-uv run pytest .
-```
-
-Hooks run on each commit (secret scan, Ruff, mypy). Run them manually with `uv run pre-commit run --all-files`. CI runs the same checks on pull requests via the Lint workflow, and runs pytest in the `dev` Docker image via the Pytest workflow.
+See [CONTRIBUTING.md](https://github.com/Vibrant-Planet-Open-Science/fvs2py/blob/main/CONTRIBUTING.md) for development setup, tests, and pre-commit hooks.
