@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.1...v0.2.2) (2026-11-09)
+
+
+### Documentation
+
+* adds CONTRIBUTING.md with dev setup, issue, style, and commit guidelines ([#67](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/67)) ([bbcc3cc](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/bbcc3ccd1f309b71f8cdae2b8374c9902f6cd5ec))
+
 ## [0.2.1](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.0...v0.2.1) (2026-11-09)
 
 
