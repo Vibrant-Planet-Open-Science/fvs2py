@@ -241,6 +241,9 @@ class FVS(FvsCore):
           5: Stop was done after growth and mortality has been computed, but
                 prior to applying them.
           6: Stop was done just before the ESTAB routines are called.
+          7: Stop was done just after input is read but before missing values
+                are imputed (tree heights and crown ratios, for example) and
+                model calibration.
         100: Stop was done after a stand has been simulated but prior to
                 starting a subsequent stand.
         """

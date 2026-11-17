@@ -219,6 +219,19 @@ def test_restart_codes_match_stop_point_codes(fvs, keyfile):
     assert os.path.exists(f"{keyfile.parent}/test_keyfile.out")
 
 
+@pytest.mark.parametrize(
+    "stop_point_code",
+    [
+        FvsStopPointCode.AFTER_INPUT_BEFORE_IMPUTE,
+        FvsStopPointCode.EVERY_STOP_LOCATION,
+    ],
+)
+def test_first_stop_location_is_after_input(fvs, keyfile, stop_point_code):
+    fvs.load_keyfile(keyfile)
+    fvs.run(stop_point_code)
+    assert fvs.restart_code == FvsRestartCode.AFTER_INPUT_BEFORE_IMPUTE
+
+
 def test_exit_code_valid_run(fvs, keyfile):
     assert fvs.exit_code == 0
     fvs.load_keyfile(keyfile)
