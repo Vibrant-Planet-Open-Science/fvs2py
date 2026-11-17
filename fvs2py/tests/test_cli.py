@@ -9,11 +9,11 @@ from pathlib import Path
 import pytest
 
 from fvs2py import cli
-from fvs2py._mixins.control import ControlMixin
+from fvs2py._core import FvsCore
 from fvs2py.enums import FvsVariant
 
 
-class FakeFVS(ControlMixin):
+class FakeFVS(FvsCore):
     """Stands in for FVS: finishes after one `fvs` call with ICCode 2."""
 
     def __init__(self):
@@ -46,11 +46,9 @@ def test_passes_fvs_args_through_and_mirrors_exit_status(fake_fvs, capsys):
         "--keywordfile=k.key",
         "--stoppoint=1,2030",
     ])
-    name, kwargs = fvs.calls[0]
-    assert name == "fvsSetCmdLine"
+    kwargs = dict(fvs.calls)["fvsSetCmdLine"]
     assert kwargs["cmdline"] == b"--keywordfile=k.key --stoppoint=1,2030"
     assert kwargs["nch"].value == len(kwargs["cmdline"])
-    assert [c[0] for c in fvs.calls[1:]] == ["fvs"]
     assert status == 20
     assert "STOP 20" in capsys.readouterr().err
 

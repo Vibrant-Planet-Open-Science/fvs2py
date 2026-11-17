@@ -14,7 +14,13 @@ repos:
       args: [ --fix ]
     # Run the formatter.
     - id: ruff-format
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v2.1.0
+# Runs the project's own mypy so it sees numpy and pandas types and the
+# pyproject.toml pins; mirrors-mypy's isolated env treated them as Any.
+- repo: local
   hooks:
     - id: mypy
+      name: mypy
+      entry: uv run --extra dev mypy
+      language: system
+      types: [python]
+      pass_filenames: false
