@@ -13,7 +13,13 @@ from fvs2py import _calls
 from fvs2py._attributes import FFE, SPECIES, SVS_OBJECTS, TREES
 from fvs2py._core import FvsCore
 from fvs2py.constants import STR_MAXSPECIES, STR_NTREES
-from fvs2py.enums import FvsActivity
+from fvs2py.enums import (
+    FvsActivity,
+    FvsExitCode,
+    FvsItrnCode,
+    FvsRestartCode,
+    FvsStopPointCode,
+)
 
 
 class FVS(FvsCore):
@@ -171,7 +177,7 @@ class FVS(FvsCore):
         self._set_stop_point_codes(stop_point_code, stop_point_year)
 
     @property
-    def stop_point_code(self) -> int | None:
+    def stop_point_code(self) -> FvsStopPointCode | None:
         """A code used to instruct FVS when to stop during a cycle.
 
         -1 : Stop at every stop location.
@@ -192,7 +198,7 @@ class FVS(FvsCore):
         has not been set).
         """
         code = self._stop_point_code
-        return None if code is None else code.value
+        return None if code is None else FvsStopPointCode(code.value)
 
     @stop_point_code.setter
     def stop_point_code(self, value: int) -> None:
@@ -218,7 +224,7 @@ class FVS(FvsCore):
         self.set_stop_point_codes(self.stop_point_code or 0, value)
 
     @property
-    def itrncd(self) -> int:
+    def itrncd(self) -> FvsItrnCode:
         """Returns with the current return code value in FVS.
 
         -1: indicates that FVS has not been started.
@@ -227,11 +233,14 @@ class FVS(FvsCore):
                 be used until reset by specifying new input.
          2: indicates that FVS has finished processing all the stands; new input
                 can be specified.
+
+        Raises:
+            ValueError: If FVS reports a code `FvsItrnCode` doesn't define.
         """
-        return self._invoke("fvsGetRtnCode")
+        return FvsItrnCode(self._invoke("fvsGetRtnCode"))
 
     @property
-    def restart_code(self) -> int:
+    def restart_code(self) -> FvsRestartCode:
         """A code indicating when FVS stopped.
 
           1: Stop was done just before the first call to the Event Monitor.
@@ -246,11 +255,14 @@ class FVS(FvsCore):
                 model calibration.
         100: Stop was done after a stand has been simulated but prior to
                 starting a subsequent stand.
+
+        Raises:
+            ValueError: If FVS reports a code `FvsRestartCode` doesn't define.
         """
-        return self._invoke("fvsGetRestartCode")
+        return FvsRestartCode(self._invoke("fvsGetRestartCode"))
 
     @property
-    def exit_code(self) -> int:
+    def exit_code(self) -> FvsExitCode:
         """Gets the integer code returned when FVS exits.
 
         Possible values are:
@@ -259,8 +271,12 @@ class FVS(FvsCore):
           2 - Keyword or expression error.
           3 - Extension or group activities error.
           4 - Scratch file error.
+         10 - Warning from the establishment or cover extensions.
+
+        Raises:
+            ValueError: If FVS reports a code `FvsExitCode` doesn't define.
         """
-        return self._invoke("fvsGetICCode")
+        return FvsExitCode(self._invoke("fvsGetICCode"))
 
     # -- Stand -----------------------------------------------------------------
 
