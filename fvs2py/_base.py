@@ -15,13 +15,7 @@ from fvs2py._mixins import (
     SVSMixin,
     TreesMixin,
 )
-from fvs2py.constants import (
-    EVMON_ATTRS,
-    FFE_FALLYRS_ATTRS,
-    SPECIES_ATTRS,
-    SVS_OBJ_ATTRS,
-    TREE_ATTRS,
-)
+from fvs2py.constants import EVMON_ATTRS
 from fvs2py.enums import FvsSimulationState
 
 
@@ -62,18 +56,13 @@ class FVS(
         self.keyfile_path = None
         self.keyfile = None
         self._evmon_attrs = dict.fromkeys(EVMON_ATTRS)
-        self._ffe_attrs = dict.fromkeys(FFE_FALLYRS_ATTRS)
-        self._svs_obj_attrs = dict.fromkeys(SVS_OBJ_ATTRS)
         self._itrncd = ct.c_int(-1)
         self._mgmt_id = ct.create_string_buffer(4)
-        self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
         self._stand_cn = ct.create_string_buffer(40)
         self._stand_id = ct.create_string_buffer(26)
         self._state = FvsSimulationState.IDLE
         self._stop_point_code = None
         self._stop_point_year = None
-        self._tree_attrs = TREE_ATTRS
-        self._trees = dict.fromkeys(TREE_ATTRS)
 
     def _reload_fvs(self) -> None:
         """Unload the current library, load a fresh one, and reset buffers."""

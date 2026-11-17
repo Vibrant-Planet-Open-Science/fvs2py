@@ -8,8 +8,9 @@ from typing import Any
 
 import numpy as np
 
+from fvs2py._attributes import EVMON
 from fvs2py.constants import STR_NCYCLES
-from fvs2py.enums import FvsActivity, FvsAttributeAccessor
+from fvs2py.enums import FvsActivity
 
 
 class EventMixin:
@@ -67,7 +68,7 @@ class EventMixin:
             KeyError: If no keyfile has been loaded.
             RuntimeError: If the simulation has not been started.
         """
-        return self._evmon_attr(attr, FvsAttributeAccessor.GET)
+        return self._evmon_attr(attr)
 
     def set_evmon_attr(self, attr: str, val: int | float) -> None:
         """Set the value of a single Event Monitor variable.
@@ -90,21 +91,10 @@ class EventMixin:
         """
         if attr not in self._evmon_attrs:
             self._evmon_attrs[attr] = None
-        self._evmon_attr(attr, FvsAttributeAccessor.SET, val)
+        self._evmon_attr(attr, val)
 
-    def _evmon_attr(
-        self,
-        attr: str,
-        action: FvsAttributeAccessor,
-        val: float | None = None,
-    ) -> float | None:
-        """Dispatch a get or set on a single Event Monitor variable.
-
-        Allocates a fresh single-element float64 buffer for every call
-        (FVS owns the authoritative value; the buffer is transient
-        working memory), runs the registered `fvsEvmonAttr` call, and
-        returns the scalar on GET. SET calls do not return a value.
-        """
+    def _evmon_attr(self, attr: str, val: float | None = None) -> float | None:
+        """Get `attr` when `val` is `None`, otherwise set it to `val`."""
         if self.keyfile is None:
             msg = "No keyfile loaded yet."
             raise KeyError(msg)
@@ -118,25 +108,9 @@ class EventMixin:
         if self.dims[STR_NCYCLES] == 0:
             return None
 
-        if action == FvsAttributeAccessor.SET and val is None:
-            msg = "Must provide `val` if `action` is 'set'."
-            raise TypeError(msg)
-
-        if action == FvsAttributeAccessor.SET:
-            arr = np.array([val], dtype=np.float64)
-        else:
-            arr = np.empty(shape=(1,), dtype=np.float64)
-
-        self._invoke(
-            "fvsEvmonAttr",
-            attr_name=ct.c_char_p(attr.encode()),
-            nch=ct.c_int(len(attr)),
-            action=ct.c_char_p(action.encode()),
-            arr=arr,
-        )
-
-        if action == FvsAttributeAccessor.GET:
-            return float(arr[0])
+        if val is None:
+            return float(EVMON.get(self._invoke, attr, 1)[0])
+        EVMON.set(self._invoke, attr, np.array([val], dtype=np.float64), 1)
         return None
 
     def add_activity(

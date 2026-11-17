@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ctypes as ct
-import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -11,21 +10,18 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from fvs2py._attributes import SPECIES
 from fvs2py.constants import SPECIES_COLUMN_NAMES, STR_MAXSPECIES
-from fvs2py.enums import FvsAttributeAccessor
 
 
 class SpeciesMixin:
     """Expose species metadata and per-species attribute get/set helpers.
 
     Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch and the `_species_attrs` mapping seeded by
-    `FVS._initialize_attributes`. Uses `self.dims` from
-    `StandMixin`.
+    dispatch and `self.dims` from `StandMixin`.
     """
 
     _invoke: Callable[..., Any]
-    _species_attrs: dict[str, npt.NDArray[np.float64] | None]
     dims: dict
 
     @property
@@ -106,15 +102,7 @@ class SpeciesMixin:
             reghmult: Height growth multiplier for regeneration (internal FVS
                 variable xrhmlt)
         """
-        for attr in self._species_attrs:
-            _ = self.get_species_attr(attr)
-
-        attrs = pd.DataFrame(self._species_attrs, copy=False)
-        if (attrs == 0).all().all():
-            warnings.warn("No species attributes initialized yet.")
-            return attrs.replace(0, None)
-
-        return attrs
+        return SPECIES.frame(self._invoke, self.dims[STR_MAXSPECIES])
 
     def get_species_attr(self, attr: str) -> npt.NDArray[np.float64]:
         """Gets a single attribute for all existing species.
@@ -123,63 +111,22 @@ class SpeciesMixin:
             attr (str): name of species attribute to fetch
 
         Returns:
-            array with values of requested attribute for all trees
+            a new array with the attribute's value for every species
 
+        Raises:
+            NameError: If FVS does not recognize `attr`.
         """
-        self._species_attr(attr, FvsAttributeAccessor.GET)
-        return self._species_attrs[attr]
+        return SPECIES.get(self._invoke, attr, self.dims[STR_MAXSPECIES])
 
     def set_species_attr(self, attr: str, arr: npt.NDArray[np.float64]) -> None:
         """Sets a single attribute for all existing species.
 
         Args:
-            attr (str): name of species attribute to fetch
-            arr (npt.NDArray[np.float64]): array of values to set
+            attr (str): name of species attribute to set
+            arr (npt.NDArray[np.float64]): values to set, shape `(maxspecies,)`
 
+        Raises:
+            NameError: If FVS does not recognize `attr`.
+            ValueError: If `arr` is not shape `(maxspecies,)`.
         """
-        return self._species_attr(attr, FvsAttributeAccessor.SET, arr)
-
-    def _species_attr(
-        self,
-        attr: str,
-        action: FvsAttributeAccessor,
-        arr: npt.NDArray[np.float64] | None = None,
-    ) -> None:
-        """Gets or sets a single attribute for all existing species.
-
-        Args:
-            attr (str): name of species attribute to get or set
-            action (FvsAttributeAccessor): 'get' or 'set'
-            arr (optional, npt.NDArray[np.float64]): array of values to set
-        """
-        if attr not in self._species_attrs:
-            msg = "Invalid variable requested. Valid options are"
-            raise NameError(msg, self._species_attrs)
-
-        dims = self.dims
-        if (
-            action == FvsAttributeAccessor.GET
-            and self._species_attrs[attr] is None
-        ):
-            self._species_attrs[attr] = np.empty(
-                dtype=np.float64, shape=(dims[STR_MAXSPECIES])
-            )
-        elif action == FvsAttributeAccessor.SET:
-            if arr is None:
-                msg = "Must provide `arr` if `action` is 'set'"
-                raise TypeError(msg)
-            if arr.shape != (dims[STR_MAXSPECIES],):
-                msg = (
-                    "`arr` must be same shape as `maxspecies` "
-                    f"({dims[STR_MAXSPECIES]},)"
-                )
-                raise ValueError(msg)
-            self._species_attrs[attr] = arr
-
-        self._invoke(
-            "fvsSpeciesAttr",
-            attr_name=ct.c_char_p(attr.encode()),
-            nch=ct.c_int(len(attr)),
-            action=ct.c_char_p(action.encode()),
-            arr=self._species_attrs[attr],
-        )
+        SPECIES.set(self._invoke, attr, arr, self.dims[STR_MAXSPECIES])

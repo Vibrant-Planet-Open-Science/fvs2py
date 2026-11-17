@@ -11,41 +11,35 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from fvs2py._attributes import TREES
 from fvs2py.constants import (
     ADD_TREES_COLS,
     STR_MAXTREES,
     STR_NPLOTS,
     STR_NTREES,
 )
-from fvs2py.enums import FvsAttributeAccessor
 
 
 class TreesMixin:
     """Expose per-tree attribute access and bulk tree insertion.
 
     Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch, `self.dims` from `StandMixin`, `self.species_codes`
-    from `SpeciesMixin`, and the `_tree_attrs` / `_trees` buffers
-    seeded by `FVS._initialize_attributes`.
+    dispatch, `self.dims` from `StandMixin`, and `self.species_codes`
+    from `SpeciesMixin`.
     """
 
     _invoke: Callable[..., Any]
-    _tree_attrs: tuple[str, ...]
-    _trees: dict[str, npt.NDArray[np.float64] | None]
     dims: dict
     species_codes: pd.DataFrame
 
     @property
     def trees(self) -> pd.DataFrame | None:
         """Returns a dataframe of trees currently in FVS."""
-        if self.dims[STR_NTREES] == 0:
+        ntrees = self.dims[STR_NTREES]
+        if ntrees == 0:
             warnings.warn("No trees in FVS yet.")
             return None
-
-        for attr in self._tree_attrs:
-            _ = self.get_tree_attr(attr)
-
-        return pd.DataFrame(self._trees, copy=False)
+        return TREES.frame(self._invoke, ntrees)
 
     def get_tree_attr(self, attr: str) -> npt.NDArray[np.float64]:
         """Gets a single attribute for existing trees.
@@ -54,59 +48,28 @@ class TreesMixin:
             attr (str): name of tree attribute to fetch
 
         Returns:
-            array with values of requested attribute for all trees
+            a new array with the attribute's value for every tree
+
+        Raises:
+            NameError: If FVS does not recognize `attr`.
         """
-        self._tree_attr(attr, FvsAttributeAccessor.GET)
-        return self._trees[attr]
+        ntrees = self.dims[STR_NTREES]
+        if ntrees == 0:
+            warnings.warn("No trees in FVS yet.")
+        return TREES.get(self._invoke, attr, ntrees)
 
     def set_tree_attr(self, attr: str, arr: npt.NDArray[np.float64]) -> None:
         """Sets a single attribute for all existing trees.
 
         Args:
             attr (str): name of tree attribute to set
-            arr (npt.NDArray[np.float64]): values to set tree attribute to
+            arr (npt.NDArray[np.float64]): values to set, shape `(ntrees,)`
+
+        Raises:
+            NameError: If FVS does not recognize `attr`.
+            ValueError: If `arr` is not shape `(ntrees,)`.
         """
-        return self._tree_attr(attr, FvsAttributeAccessor.SET, arr)
-
-    def _tree_attr(
-        self,
-        attr: str,
-        action: FvsAttributeAccessor,
-        arr: npt.NDArray[np.float64] | None = None,
-    ) -> None:
-        """Get or set a single attribute for existing trees.
-
-        Args:
-            attr (str): attribute to set or get
-            action (FvsAttributeAccessor): 'set' or 'get'
-            arr (optional, npt.NDArray[np.float64]): array of values to set
-        """
-        if attr not in self._tree_attrs:
-            self._trees[attr] = None
-
-        ntrees = self.dims[STR_NTREES]
-
-        if action == FvsAttributeAccessor.GET:
-            self._trees[attr] = np.empty(dtype=np.float64, shape=(ntrees,))
-            if ntrees == 0:
-                warnings.warn("No trees in FVS yet.")
-        elif action == FvsAttributeAccessor.SET:
-            if arr is None:
-                msg = "Must provide `arr` if `action` is 'set'"
-                raise TypeError(msg)
-            if arr.shape != (ntrees,):
-                msg = f"`arr` must be same shape as `ntrees` ({ntrees},)"
-                raise ValueError(msg)
-            self._trees[attr] = arr
-
-        self._invoke(
-            "fvsTreeAttr",
-            attr_name=ct.c_char_p(attr.encode()),
-            nch=ct.c_int(len(attr)),
-            action=ct.c_char_p(action.encode()),
-            ntrees=ct.c_int(ntrees),
-            arr=self._trees[attr],
-        )
+        TREES.set(self._invoke, attr, arr, self.dims[STR_NTREES])
 
     def add_trees(self, tree_df: pd.DataFrame) -> None:
         """Adds trees to an existing simulation.
