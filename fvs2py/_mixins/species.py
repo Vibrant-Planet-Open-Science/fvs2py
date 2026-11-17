@@ -11,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from fvs2py.common import fvs_property
 from fvs2py.constants import SPECIES_COLUMN_NAMES, STR_MAXSPECIES
 from fvs2py.enums import FvsAttributeAccessor
 
@@ -29,14 +28,14 @@ class SpeciesMixin:
     _species_attrs: dict[str, npt.NDArray[np.float64] | None]
     dims: dict
 
-    @fvs_property
+    @property
     def species(self) -> pd.DataFrame:
         """Returns species codes and attributes for all species."""
         codes = self.species_codes
         attrs = self.species_attrs
         return codes.merge(attrs, left_index=True, right_index=True, copy=False)
 
-    @fvs_property
+    @property
     def species_codes(self) -> pd.DataFrame:
         """Fetch the various codes used to refer to different tree species."""
         dims = self.dims
@@ -70,7 +69,7 @@ class SpeciesMixin:
 
         return spp_codes
 
-    @fvs_property
+    @property
     def species_attrs(self) -> pd.DataFrame:
         """Returns a dataframe of species attributes.
 

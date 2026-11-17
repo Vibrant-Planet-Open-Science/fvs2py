@@ -8,9 +8,8 @@ import os
 import warnings
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fvs2py.common import fvs_property
 from fvs2py.enums import FvsItrnCode, FvsStopPointCode
 from fvs2py.keyfile import validate_single_stand
 
@@ -31,10 +30,14 @@ class ControlMixin:
     _stop_point_year: ct.c_int | None
     keyfile_path: Path | None
     keyfile: str | None
-    itrncd: int
     _reload_fvs: Callable[[], None]
 
-    @fvs_property
+    if TYPE_CHECKING:
+
+        @property
+        def itrncd(self) -> int: ...  # provided by SimulationMixin
+
+    @property
     def stop_point_code(self) -> int | None:
         """A code used to instruct FVS when to stop during a cycle.
 
@@ -59,7 +62,7 @@ class ControlMixin:
             return self._stop_point_code.value
         return None
 
-    @stop_point_code.setter  # type: ignore[no-redef]
+    @stop_point_code.setter
     def stop_point_code(self, value: int) -> None:
         year = (
             self._stop_point_year.value
@@ -68,7 +71,7 @@ class ControlMixin:
         )
         self.set_stop_point_codes(value, year)
 
-    @fvs_property
+    @property
     def stop_point_year(self) -> int | None:
         """A code indicating which cycles FVS should stop at.
 
@@ -84,7 +87,7 @@ class ControlMixin:
             return self._stop_point_year.value
         return None
 
-    @stop_point_year.setter  # type: ignore[no-redef]
+    @stop_point_year.setter
     def stop_point_year(self, value: int) -> None:
         code = (
             self._stop_point_code.value

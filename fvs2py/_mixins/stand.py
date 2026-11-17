@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from fvs2py.common import fvs_property
 from fvs2py.constants import (
     MGMT_ID_COLUMN_NAME,
     STAND_CN_COLUMN_NAME,
@@ -35,12 +34,12 @@ class StandMixin:
     keyfile: str | None
     stop_point_code: int | None
 
-    @fvs_property
+    @property
     def dims(self) -> dict:
         """Return the max dimensions of important FVS data storage."""
         return self._invoke("fvsDimSizes")
 
-    @fvs_property
+    @property
     def stand_ids(self) -> dict:
         """Return stand identification codes.
 
@@ -72,7 +71,7 @@ class StandMixin:
             MGMT_ID_COLUMN_NAME: self._mgmt_id.value.decode().strip(),
         }
 
-    @fvs_property
+    @property
     def summary(self) -> pd.DataFrame | None:
         """Return a dataframe with FVS Summary Statistics for all initiated cycles.
 

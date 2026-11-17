@@ -8,30 +8,24 @@ from typing import Any
 
 from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import load_dll, unload_dll
-from fvs2py.constants import NEEDED_ROUTINES
 
 
 class FvsCore:
     """Base class for FVS API wrapper."""
 
     def __init__(self, lib_path: str | os.PathLike) -> None:
-        """Load the FVS shared library and bind its needed routines.
-
-        Resolves each routine in `NEEDED_ROUTINES` from the loaded
-        library, tolerating both the unix-style `name_` mangling and the
-        un-mangled `name` spelling, and assigns each to `self._<name>`.
-        Argtypes/restype are applied per-call by `_invoke` via the
-        `fvs2py._routines.FVS_ROUTINES` registry.
+        """Load the FVS shared library and bind its routines.
 
         Args:
             lib_path: Path to the FVS shared library.
 
         Raises:
-            ImportError: If one or more routines in `NEEDED_ROUTINES`
-                are not present or not callable on the loaded library.
+            ImportError: If any routine in `FVS_ROUTINES` is not present or
+                not callable on the loaded library.
         """
         self.lib_path: Path = Path(os.path.abspath(lib_path))
         self._lib: ct.CDLL | None = None
+        self._funcs: dict[str, Any] = {}
         self.variant: str = (
             os.path
             .basename(self.lib_path)
@@ -39,60 +33,40 @@ class FvsCore:
             .split("FVS")[-1]
             .upper()
         )
-
-        # Declare function attributes with type annotations for mypy.
-        # These are ctypes foreign function pointers loaded from the shared library.
-        self._fvs: ct._FuncPointer
-        self._fvsAddActivity: ct._FuncPointer
-        self._fvsAddTrees: ct._FuncPointer
-        self._fvsDimSizes: ct._FuncPointer
-        self._fvsEvmonAttr: ct._FuncPointer
-        self._fvsFFEAttrs: ct._FuncPointer
-        self._fvsGetRestartCode: ct._FuncPointer
-        self._fvsGetRtnCode: ct._FuncPointer
-        self._fvsGetICCode: ct._FuncPointer
-        self._fvsSVSDimSizes: ct._FuncPointer
-        self._fvsSetStoppointCodes: ct._FuncPointer
-        self._fvsSetCmdLine: ct._FuncPointer
-        self._fvsSVSObjData: ct._FuncPointer
-        self._fvsSpeciesAttr: ct._FuncPointer
-        self._fvsSpeciesCode: ct._FuncPointer
-        self._fvsStandID: ct._FuncPointer
-        self._fvsSummary: ct._FuncPointer
-        self._fvsTreeAttr: ct._FuncPointer
-
         self._load_fvs()
-        assert self._lib is not None  # to satisfy type checker
 
-        self._resolve_routines()
+    def _invoke(self, name: str, /, **kwargs: Any) -> Any:
+        """Call the FVS routine `name` via its `FVS_ROUTINES` declaration.
 
-    def _resolve_routines(self) -> None:
-        """Bind each needed FVS routine to `self` as a raw `_FuncPointer`.
-
-        For every name in `NEEDED_ROUTINES`, look up the corresponding
-        foreign function on `self._lib` (trying the `name_` mangling
-        first, then the un-mangled name) and assign the resolved function to
-        `self._<name>`. Per-call argtypes/restype are applied by
-        `_invoke` using the `fvs2py._routines.FVS_ROUTINES`
-        registry; no static signature is applied here.
+        Every call into the native library goes through here.
 
         Raises:
-            ImportError: If any needed routines are missing or not callable.
+            RuntimeError: If the library has been unloaded.
         """
-        assert self._lib is not None  # to satisfy type checker
+        if self._lib is None:
+            msg = f"FVS library not loaded, unable to call {name}."
+            raise RuntimeError(msg)
+        return FVS_ROUTINES[name].call(self._funcs[name], **kwargs)
+
+    def _load_fvs(self) -> None:
+        """Load the FVS shared library and bind every routine in `FVS_ROUTINES`.
+
+        Tries the `name_` mangling first, then the un-mangled name.
+
+        Raises:
+            ImportError: If any routines are missing or not callable.
+        """
+        self._lib = load_dll(self.lib_path)
         missing: list[str] = []
-        for name in NEEDED_ROUTINES:
-            func: ct._FuncPointer | None = None
+        for name in FVS_ROUTINES:
             for candidate in (f"{name.lower()}_", name):
-                attr = getattr(self._lib, candidate, None)
-                if attr is not None and callable(attr):
-                    func = attr
+                func = getattr(self._lib, candidate, None)
+                if callable(func):
                     logging.debug(f"Found {name} as {candidate}.")
+                    self._funcs[name] = func
                     break
-            if func is None:
+            else:
                 missing.append(name)
-                continue
-            setattr(self, f"_{name}", func)
 
         if missing:
             msg = " ".join([
@@ -102,53 +76,9 @@ class FvsCore:
             ])
             raise ImportError(msg)
 
-    def _invoke(self, name: str, /, **kwargs: Any) -> Any:
-        """Dispatch a call to a registered FVS routine.
-
-        Looks up `name` in `fvs2py._routines.FVS_ROUTINES`, resolves
-        the bound foreign function at `self._<name>`, and hands off to
-        `fvs2py._routines.Routine.call` for argtype resolution, OUT
-        buffer allocation, return-code policy dispatch, and result unwrap.
-
-        Args:
-            name: Un-mangled FVS routine name (the same key used by
-                `NEEDED_ROUTINES`).
-            **kwargs: Per-parameter values; see the relevant
-                `fvs2py._routines.Routine` declaration for the
-                expected kwarg names.
-
-        Returns:
-            Whatever `fvs2py._routines.Routine.call` returns for the
-            routine: `None` when there are no non-rc OUT params, an
-            unwrapped scalar for a single OUT param, or a dict keyed by
-            OUT-param name for multiple OUT params.
-
-        Raises:
-            NotImplementedError: If `name` is not registered in
-                `FVS_ROUTINES` (either a typo or the routine has not
-                been migrated to the registry yet).
-            AttributeError: If the corresponding foreign function has not
-                been resolved on `self`.
-        """
-        try:
-            routine = FVS_ROUTINES[name]
-        except KeyError as exc:
-            msg = f"{name!r} is not registered in FVS_ROUTINES"
-            raise NotImplementedError(msg) from exc
-        func = getattr(self, f"_{name}")
-        return routine.call(func, **kwargs)
-
-    def _load_fvs(self) -> None:
-        """Load the FVS shared library into `self._lib`, unloading any prior handle."""
-        if self._lib:
-            logging.debug("Unloading existing library.")
-            self._unload_fvs()
-        self._lib = load_dll(self.lib_path)
-
     def _unload_fvs(self) -> None:
-        """Unload the currently held FVS shared library, if any."""
+        """Unload the FVS shared library, if any, and drop its routines."""
+        self._funcs.clear()
         if self._lib:
             unload_dll(self._lib)
             self._lib = None
-        else:
-            logging.debug("No library to unload.")

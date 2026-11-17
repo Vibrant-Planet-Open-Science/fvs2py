@@ -22,7 +22,6 @@ from fvs2py._mixins.stand import StandMixin
 from fvs2py._mixins.svs import SVSMixin
 from fvs2py._mixins.trees import TreesMixin
 from fvs2py._routines import FVS_ROUTINES
-from fvs2py.common import class_requires_fvs_library, no_fvs_library_required
 from fvs2py.constants import (
     EVMON_ATTRS,
     FFE_FALLYRS_ATTRS,
@@ -54,11 +53,6 @@ from fvs2py.enums import (
     FvsSimulationState,
 )
 
-
-class _StubLib:
-    """Sentinel `_lib` attribute used by `@fvs_property` loaded-library checks."""
-
-
 # ---------------------------------------------------------------------------
 # StandMixin
 # ---------------------------------------------------------------------------
@@ -71,7 +65,6 @@ class _StandStub(StandMixin, ControlMixin):
     """
 
     def __init__(self):
-        self._lib = _StubLib()
         self.keyfile = None
         self._stop_point_code = None
         self._stop_point_year = None
@@ -159,7 +152,6 @@ class _SimulationStub(SimulationMixin):
     """
 
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
-        self._lib = _StubLib()
         self.keyfile = None
         self._itrncd = ct.c_int(-1)
         self._state = FvsSimulationState.IDLE
@@ -306,7 +298,6 @@ def test_simulation_mixin_run_batch_sets_state_error_on_exception():
 
 class _ControlStub(ControlMixin):
     def __init__(self):
-        self._lib = _StubLib()
         self._itrncd = ct.c_int(FvsItrnCode.NOT_STARTED)
         self._stop_point_code = None
         self._stop_point_year = None
@@ -392,7 +383,6 @@ def test_control_mixin_stop_point_code_setter_validates():
 
 class _SpeciesStub(SpeciesMixin):
     def __init__(self):
-        self._lib = _StubLib()
         self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
 
     def _invoke(self, name, /, **kwargs):
@@ -440,7 +430,6 @@ class _SVSStub(SVSMixin):
             STR_MXDEADOBJS: 100,
             STR_MXCWDOBJS: 100,
         }
-        self._lib = _StubLib()
         self._ffe_attrs = dict.fromkeys(FFE_FALLYRS_ATTRS)
         self._svs_obj_attrs = dict.fromkeys(SVS_OBJ_ATTRS)
         self.dims = {STR_MAXSPECIES: maxspecies}
@@ -637,7 +626,6 @@ class _TreesStub(TreesMixin):
         nplots: int = 1,
         species_indices: tuple[int, ...] = (1,),
     ):
-        self._lib = _StubLib()
         self._tree_attrs = TREE_ATTRS
         self._trees = dict.fromkeys(TREE_ATTRS)
         self.dims = {
@@ -742,7 +730,6 @@ class _EventStub(EventMixin):
         known_values: dict[str, float] | None = None,
         add_activity_rc: int = 0,
     ):
-        self._lib = _StubLib()
         self._evmon_attrs = dict.fromkeys(EVMON_ATTRS)
         self.keyfile = keyfile
         self.stop_point_code = stop_point_code
@@ -878,107 +865,3 @@ def test_event_mixin_add_activity_rc_one_raises_valueerror():
     stub = _EventStub(add_activity_rc=1)
     with pytest.raises(ValueError, match="failed to add the activity"):
         stub.add_activity(2025, FvsBaseActivity.THINPRSC)
-
-
-# ---------------------------------------------------------------------------
-# class_requires_fvs_library: MRO walk, marker opt-out, static/class skip
-# ---------------------------------------------------------------------------
-
-
-def test_class_requires_fvs_library_wraps_public_methods_from_mixins():
-    class MixinA:
-        def alpha(self):
-            return "alpha"
-
-    class MixinB:
-        def beta(self):
-            return "beta"
-
-    @class_requires_fvs_library
-    class Host(MixinA, MixinB):
-        pass
-
-    obj = Host()
-    obj._lib = None
-    with pytest.raises(
-        RuntimeError, match="FVS library not loaded, unable to call alpha."
-    ):
-        obj.alpha()
-    with pytest.raises(
-        RuntimeError, match="FVS library not loaded, unable to call beta."
-    ):
-        obj.beta()
-
-
-def test_class_requires_fvs_library_subclass_override_wins_over_base():
-    class Base:
-        def method(self):
-            return "base"
-
-    @class_requires_fvs_library
-    class Sub(Base):
-        def method(self):
-            return "sub"
-
-    obj = Sub()
-    obj._lib = _StubLib()
-    assert obj.method() == "sub"
-
-
-def test_class_requires_fvs_library_honors_no_fvs_library_required():
-    @class_requires_fvs_library
-    class Host:
-        @no_fvs_library_required
-        def pure_python(self):
-            return "ok"
-
-        def needs_lib(self):
-            return "guarded"
-
-    obj = Host()
-    obj._lib = None
-    assert obj.pure_python() == "ok"
-    with pytest.raises(
-        RuntimeError, match="FVS library not loaded, unable to call needs_lib."
-    ):
-        obj.needs_lib()
-
-
-def test_class_requires_fvs_library_skips_staticmethod_and_classmethod():
-    @class_requires_fvs_library
-    class Host:
-        @staticmethod
-        def static_method():
-            return "static"
-
-        @classmethod
-        def class_method(cls):
-            return "class"
-
-    # `_lib` is not set on any instance — a wrapped method would raise
-    # RuntimeError. These are NOT wrapped, so they work without state.
-    assert Host.static_method() == "static"
-    assert Host.class_method() == "class"
-
-
-def test_class_requires_fvs_library_skips_private_methods():
-    @class_requires_fvs_library
-    class Host:
-        def _private(self):
-            return "private"
-
-    obj = Host()
-    obj._lib = None
-    assert obj._private() == "private"
-
-
-def test_class_requires_fvs_library_skips_property_descriptors():
-    @class_requires_fvs_library
-    class Host:
-        @property
-        def plain(self):
-            return "plain"
-
-    obj = Host()
-    obj._lib = None
-    assert obj.plain == "plain"

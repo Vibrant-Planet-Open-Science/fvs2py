@@ -8,7 +8,6 @@ from typing import Any
 
 import numpy as np
 
-from fvs2py.common import fvs_property
 from fvs2py.constants import STR_NCYCLES
 from fvs2py.enums import FvsActivity, FvsAttributeAccessor
 
@@ -28,7 +27,7 @@ class EventMixin:
     stop_point_code: int | None
     dims: dict
 
-    @fvs_property
+    @property
     def evmon_attrs(self) -> dict[str, float | None]:
         """Return current values for every tracked Event Monitor variable.
 

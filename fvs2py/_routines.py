@@ -664,8 +664,6 @@ FVS_ROUTINES: Mapping[str, Routine] = MappingProxyType({
 })
 """Immutable registry of FVS routine call descriptions.
 
-Keyed by the un-mangled FVS routine name (matching `NEEDED_ROUTINES`).
-Entries are added as each mixin migrates to `FvsCore._invoke`; routines
-not (yet) described here remain resolvable through `FvsCore` without
-the registry applying a signature to them.
+Keyed by the un-mangled FVS routine name. `FvsCore` binds every entry at load
+time, so a library missing any of them fails to load.
 """

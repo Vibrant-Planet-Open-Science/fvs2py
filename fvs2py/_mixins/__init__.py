@@ -1,8 +1,7 @@
 """Focused mixins that compose the `fvs2py.FVS` public API.
 
 Each mixin owns a coherent slice of FVS functionality and assumes the instance
-already has `self._lib` plus the resolved `_fvsXyz` foreign-function
-attributes from `fvs2py._core.FvsCore` and the Python-side buffers
+already has `FvsCore._invoke` and the Python-side buffers
 initialized by `FVS._initialize_attributes`.
 """
 

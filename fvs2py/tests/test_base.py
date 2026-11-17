@@ -371,20 +371,12 @@ def test_load_keyfile_after_run(fvs, keyfile):
     assert fvs.summary is None  # results of first run were cleared
 
 
-def test_decorator_requires_fvs_library_following_unload(fvs):
+def test_methods_require_fvs_library_following_unload(fvs, keyfile):
+    fvs.load_keyfile(keyfile)
     fvs._unload_fvs()
-    with pytest.raises(
-        RuntimeError, match="FVS library not loaded, unable to call run."
-    ):
+    with pytest.raises(RuntimeError, match="FVS library not loaded"):
         fvs.run()
-
-
-def test_fvs_methods_require_fvs_library(fvs):
-    fvs._unload_fvs()
-    with pytest.raises(
-        RuntimeError,
-        match="FVS library not loaded, unable to access species_attrs property.",
-    ):
+    with pytest.raises(RuntimeError, match="FVS library not loaded"):
         fvs.species_attrs
 
 
