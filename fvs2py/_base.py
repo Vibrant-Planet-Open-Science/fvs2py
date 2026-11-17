@@ -95,9 +95,8 @@ class FVS(FvsCore):
                 7 : Stop just after input is read but before missing values
                         are imputed
             stop_point_year (optional, int): years FVS should stop, options are:
-                0 : Never stop
-               -1 : Stop at every cycle
-               YYYY : A specific year during the simulation period
+                0 or negative : Stop in every cycle
+                YYYY : Stop only in the cycle that contains year YYYY
 
         Raises:
             RuntimeError: If no keyfile has been loaded yet.
@@ -166,9 +165,8 @@ class FVS(FvsCore):
                 7 : Stop just after input is read but before missing values
                         are imputed
             stop_point_year (int): Optional, years FVS should stop, options are:
-                0 : Never stop
-               -1 : Stop at every cycle
-               YYYY : A specific year during the simulation period
+                0 or negative : Stop in every cycle
+                YYYY : Stop only in the cycle that contains year YYYY
 
         Raises:
             ValueError: If `stop_point_code` is outside the range `[-1, 7]`, or
@@ -208,9 +206,11 @@ class FVS(FvsCore):
     def stop_point_year(self) -> int | None:
         """A code indicating which cycles FVS should stop at.
 
-        0 : Never stop.
-        1 : Stop at every cycle.
-        YYYY : A specific year during the simulation period.
+        0 or negative : Stop in every cycle.
+        YYYY : Stop only in the cycle that contains year YYYY.
+
+        The year only narrows `stop_point_code`; FVS never stops when
+        `stop_point_code` is 0.
 
         Assigning to this property delegates to `set_stop_point_codes`,
         preserving the currently-configured `stop_point_code` (or `0` if code
