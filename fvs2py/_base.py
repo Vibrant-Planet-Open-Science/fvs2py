@@ -274,7 +274,7 @@ class FVS(FvsCore):
             RuntimeError: If no keyfile has been loaded or `run` has not been
                 called.
         """
-        self._require_keyfile(started=True)
+        self._require_started()
         return _calls.stand_ids(self._invoke)
 
     @property
@@ -462,7 +462,7 @@ class FVS(FvsCore):
             RuntimeError: If no keyfile has been loaded or the simulation has
                 not been started.
         """
-        self._require_keyfile(started=True)
+        self._require_started()
         return _calls.get_evmon(self._invoke, attr)
 
     def set_evmon_attr(self, attr: str, val: int | float) -> None:
@@ -483,7 +483,7 @@ class FVS(FvsCore):
             RuntimeError: If no keyfile has been loaded or the simulation has
                 not been started.
         """
-        self._require_keyfile(started=True)
+        self._require_started()
         self._evmon_names.setdefault(attr)
         _calls.set_evmon(self._invoke, attr, val)
 
@@ -536,7 +536,7 @@ class FVS(FvsCore):
             misbehave. The correct call supplies every field explicitly, e.g.
             `params=[80.0, 1.0, 0.0, 999.0, 0.0, 999.0]`.
         """
-        self._require_keyfile(started=True)
+        self._require_started()
         _calls.add_activity(self._invoke, year, activity, params)
 
     # -- SVS and FFE -----------------------------------------------------------

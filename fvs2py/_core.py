@@ -32,15 +32,13 @@ class FvsCore:
             ImportError: If any routine in `FVS_ROUTINES` is not present or not
                 callable on the loaded library.
         """
-        self.lib_path: Path = Path(os.path.abspath(lib_path))
+        self.lib_path: Path = Path(lib_path).resolve()
         self._lib: ct.CDLL | None = None
         self._funcs: dict[str, Any] = {}
+        # Parsed from the name as passed, since a resolved symlink may not
+        # follow the FVS<variant> naming.
         self.variant: str = (
-            os.path
-            .basename(self.lib_path)
-            .split(".")[0]
-            .split("FVS")[-1]
-            .upper()
+            Path(lib_path).name.split(".")[0].split("FVS")[-1].upper()
         )
         self._load_fvs()
         self._initialize_attributes()
@@ -103,7 +101,7 @@ class FvsCore:
             self._lib = None
 
     def _reload_fvs(self) -> None:
-        """Unload the library, load a fresh copy, and reset Python-side state."""
+        """Unload the library, load a fresh copy, and reset Python state."""
         self._unload_fvs()
         self._load_fvs()
         self._initialize_attributes()
@@ -118,15 +116,16 @@ class FvsCore:
             itrncd=self._itrncd,
         )
 
-    def _require_keyfile(self, *, started: bool = False) -> None:
-        """Raise `RuntimeError` unless a keyfile is loaded.
-
-        With `started=True`, also require that `run` has been called.
-        """
+    def _require_keyfile(self) -> None:
+        """Raise `RuntimeError` unless a keyfile is loaded."""
         if self.keyfile is None:
             msg = "No keyfile loaded yet. Call `load_keyfile` first."
             raise RuntimeError(msg)
-        if started and self._stop_point_code is None:
+
+    def _require_started(self) -> None:
+        """Raise `RuntimeError` unless a keyfile is loaded and `run` called."""
+        self._require_keyfile()
+        if self._stop_point_code is None:
             msg = "Simulation has not started yet. Call `run` first."
             raise RuntimeError(msg)
 
@@ -145,9 +144,8 @@ class FvsCore:
             logging.debug("FVS was already started. Resetting.")
             self._reload_fvs()
 
-        self.keyfile_path = Path(os.path.abspath(keywordfile))
-        with open(self.keyfile_path) as f:
-            self.keyfile = f.read()
+        self.keyfile_path = Path(keywordfile).resolve()
+        self.keyfile = self.keyfile_path.read_text()
 
         if check_single_stand:
             try:
