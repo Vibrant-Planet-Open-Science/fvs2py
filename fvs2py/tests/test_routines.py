@@ -20,12 +20,10 @@ from fvs2py._routines import (
     Intent,
     Param,
     Routine,
-    _unwrap,
     add_activity_policy,
     add_trees_policy,
     attr_accessor_policy,
     ndptr_f64,
-    ndptr_intc,
     species_code_policy,
 )
 from fvs2py.enums import FvsAttrReturnCode
@@ -52,31 +50,15 @@ class _Stub:
 
 
 # ---------------------------------------------------------------------------
-# Helpers: _unwrap, ndptr_* factories, attr_accessor_policy
+# Helpers: ndptr_f64, attr_accessor_policy
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [(7, 7), (ct.c_int(42), 42), (np.int32(5), 5)],
-)
-def test_unwrap_returns_int_for_plain_and_ctypes_and_numpy_scalars(
-    value, expected
-):
-    assert _unwrap(value) == expected
 
 
 def test_ndptr_f64_resolves_shape_and_dtype_from_scope():
     factory = ndptr_f64("rows", "cols")
-    cls = factory({"rows": ct.c_int(2), "cols": 3})
+    cls = factory({"rows": ct.c_int(2), "cols": ct.c_int(3)})
     assert cls._shape_ == (2, 3)
     assert cls._dtype_ == np.dtype(np.float64)
-
-
-def test_ndptr_intc_uses_intc_dtype():
-    cls = ndptr_intc("n")({"n": 4})
-    assert cls._shape_ == (4,)
-    assert cls._dtype_ == np.dtype(np.intc)
 
 
 @pytest.mark.parametrize(

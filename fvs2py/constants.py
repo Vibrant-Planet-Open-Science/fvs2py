@@ -39,7 +39,6 @@ NEEDED_ROUTINES = (
     "fvsStandID",
     "fvsSummary",
     "fvsTreeAttr",
-    "fvsUnitConversion",
 )
 
 SPECIES_INDEX_COLUMN_NAME = "fvs_index"

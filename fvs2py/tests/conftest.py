@@ -60,9 +60,6 @@ def mock_valid_fvs_dll(mocker):
         def fvsTreeAttr():
             return
 
-        def fvsUnitConversion():
-            return
-
     mock_dll_obj = mocker.MagicMock(spec=ValidFvsDLL)
     mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)
 

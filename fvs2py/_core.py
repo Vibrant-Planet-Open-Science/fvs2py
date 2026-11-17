@@ -60,7 +60,6 @@ class FvsCore:
         self._fvsStandID: ct._FuncPointer
         self._fvsSummary: ct._FuncPointer
         self._fvsTreeAttr: ct._FuncPointer
-        self._fvsUnitConversion: ct._FuncPointer
 
         self._load_fvs()
         assert self._lib is not None  # to satisfy type checker

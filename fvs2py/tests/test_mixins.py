@@ -3,8 +3,7 @@
 These tests exercise each mixin's Python-side logic without loading the real
 FVS shared library. Where a mixin method has to invoke a ctypes foreign
 function, the test substitutes a plain Python callable that mutates its
-output-pointer arguments (the `call_out` helper passes freshly-allocated
-`ct.c_int` objects, which look identical to a Python stub).
+output-pointer arguments.
 """
 
 from __future__ import annotations
