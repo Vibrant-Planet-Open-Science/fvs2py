@@ -20,27 +20,6 @@ STAND_CN_COLUMN_NAME = "stand_cn"
 STAND_ID_COLUMN_NAME = "stand_id"
 MGMT_ID_COLUMN_NAME = "mgmt_id"
 
-NEEDED_ROUTINES = (
-    "fvs",
-    "fvsAddActivity",
-    "fvsAddTrees",
-    "fvsDimSizes",
-    "fvsEvmonAttr",
-    "fvsFFEAttrs",
-    "fvsGetRestartCode",
-    "fvsGetRtnCode",
-    "fvsGetICCode",
-    "fvsSVSDimSizes",
-    "fvsSetStoppointCodes",
-    "fvsSetCmdLine",
-    "fvsSVSObjData",
-    "fvsSpeciesAttr",
-    "fvsSpeciesCode",
-    "fvsStandID",
-    "fvsSummary",
-    "fvsTreeAttr",
-)
-
 SPECIES_INDEX_COLUMN_NAME = "fvs_index"
 SPECIES_ALPHA_COLUMN_NAME = "fvs_alpha"
 SPECIES_FIA_COLUMN_NAME = "fia"

@@ -7,7 +7,6 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from fvs2py.common import fvs_property
 from fvs2py.enums import FvsItrnCode, FvsRestartCode, FvsSimulationState
 
 
@@ -28,7 +27,7 @@ class SimulationMixin:
     stop_point_year: int | None
     set_stop_point_codes: Callable[..., None]
 
-    @fvs_property
+    @property
     def exit_code(self) -> int:
         """Gets the integer code returned when FVS exits.
 
@@ -41,7 +40,7 @@ class SimulationMixin:
         """
         return self._invoke("fvsGetICCode")
 
-    @fvs_property
+    @property
     def itrncd(self) -> int:
         """Returns with the current return code value in FVS.
 
@@ -54,7 +53,7 @@ class SimulationMixin:
         """
         return self._invoke("fvsGetRtnCode")
 
-    @fvs_property
+    @property
     def restart_code(self) -> int:
         """A code indicating when FVS stopped.
 

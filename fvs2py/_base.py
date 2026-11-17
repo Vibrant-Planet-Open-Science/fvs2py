@@ -15,7 +15,6 @@ from fvs2py._mixins import (
     SVSMixin,
     TreesMixin,
 )
-from fvs2py.common import class_requires_fvs_library
 from fvs2py.constants import (
     EVMON_ATTRS,
     FFE_FALLYRS_ATTRS,
@@ -26,7 +25,6 @@ from fvs2py.constants import (
 from fvs2py.enums import FvsSimulationState
 
 
-@class_requires_fvs_library
 class FVS(
     EventMixin,
     SVSMixin,

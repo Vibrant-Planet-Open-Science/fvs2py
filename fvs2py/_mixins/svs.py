@@ -11,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from fvs2py.common import fvs_property
 from fvs2py.constants import (
     STR_MAXSPECIES,
     STR_NCWDOBJS,
@@ -54,7 +53,7 @@ class SVSMixin:
     _svs_obj_attrs: dict[str, npt.NDArray[np.float64] | None]
     dims: dict
 
-    @fvs_property
+    @property
     def svs_dim_sizes(self) -> dict[str, int]:
         """Current and max SVS object counts from `fvsSVSDimSizes`.
 
@@ -63,7 +62,7 @@ class SVSMixin:
         """
         return self._invoke("fvsSVSDimSizes")
 
-    @fvs_property
+    @property
     def ffe_attrs(self) -> pd.DataFrame:
         """DataFrame of per-species `fallyrs0`..`fallyrs5` (`fvsFFEAttrs`)."""
         for attr in self._ffe_attrs:

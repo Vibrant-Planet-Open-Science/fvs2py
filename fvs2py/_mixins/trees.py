@@ -11,7 +11,6 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from fvs2py.common import fvs_property
 from fvs2py.constants import (
     ADD_TREES_COLS,
     STR_MAXTREES,
@@ -36,7 +35,7 @@ class TreesMixin:
     dims: dict
     species_codes: pd.DataFrame
 
-    @fvs_property
+    @property
     def trees(self) -> pd.DataFrame | None:
         """Returns a dataframe of trees currently in FVS."""
         if self.dims[STR_NTREES] == 0:
