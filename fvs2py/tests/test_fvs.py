@@ -159,12 +159,12 @@ class FakeLib:
 @pytest.fixture
 def make_fvs(mock_valid_fvs_dll):  # noqa: ARG001 (patches ctypes.CDLL)
     def make(*, keyfile=KEYFILE, started=True, **overrides):
+        if started:
+            overrides.setdefault("itrncd", int(FvsItrnCode.FINISHED_ALL_STANDS))
         lib = FakeLib(**overrides)
         fvs = FVS("/not/a/real/dir/FVSxx.so")
         fvs._funcs.update(lib.funcs())
         fvs.keyfile = keyfile
-        if started:
-            fvs.set_stop_point_codes(0, 0)
         return fvs, lib
 
     return make
@@ -188,6 +188,13 @@ def test_stand_ids_without_keyfile_raises(make_fvs):
 
 def test_stand_ids_without_run_raises(make_fvs):
     fvs, _ = make_fvs(started=False)
+    with pytest.raises(RuntimeError, match="Simulation has not started yet."):
+        fvs.stand_ids
+
+
+def test_setting_stop_points_does_not_start_the_simulation(make_fvs):
+    fvs, _ = make_fvs(started=False)
+    fvs.set_stop_point_codes(0, 0)
     with pytest.raises(RuntimeError, match="Simulation has not started yet."):
         fvs.stand_ids
 
@@ -248,7 +255,9 @@ def test_run_batch_does_not_flush_when_stand_done(make_fvs):
 
 
 def test_run_batch_stops_when_restart_code_leaves_initialized(make_fvs):
-    fvs, lib = make_fvs(restart_code=int(FvsRestartCode.BEFORE_FIRST_EVMON))
+    fvs, lib = make_fvs(
+        started=False, restart_code=int(FvsRestartCode.BEFORE_FIRST_EVMON)
+    )
     fvs.run_batch()
     assert lib.fvs_calls == 1
 
