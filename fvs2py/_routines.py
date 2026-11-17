@@ -2,8 +2,8 @@
 
 Each FVS routine is described by a `Routine` whose parameters are
 `Param` records carrying a name, a ctypes type (static or a runtime
-factory closure over the call kwargs), and an `Intent` flag indicating
-direction. `Routine.call` resolves dynamic types, auto-allocates
+factory closure over the call kwargs), and an `out` flag for scalar
+outputs. `Routine.call` resolves dynamic types, auto-allocates
 output buffers, assigns `argtypes`/`restype` on the resolved foreign
 function, invokes it, and dispatches any configured return-code policy.
 
@@ -18,7 +18,6 @@ from __future__ import annotations
 import ctypes as ct
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
-from enum import Flag, auto
 from types import MappingProxyType
 from typing import Any
 
@@ -43,22 +42,6 @@ from fvs2py.constants import (
 )
 from fvs2py.enums import FvsAttrReturnCode
 
-
-class Intent(Flag):
-    """Direction flag for a `Param`.
-
-    `IN` parameters are supplied by callers as kwargs and passed through to
-    the foreign function unchanged. `OUT` parameters are auto-allocated by
-    the invoker and returned to the caller; callers must not pass them.
-    `INOUT` (`IN | OUT`) parameters are caller-owned buffers that the
-    foreign function may read from and write into in place.
-    """
-
-    IN = auto()
-    OUT = auto()
-    INOUT = IN | OUT
-
-
 Scope = Mapping[str, Any]
 ParamType = type | Callable[[Scope], type]
 
@@ -72,12 +55,14 @@ class Param:
         ctype: Either a ctypes type (static) or a callable that receives the
             call-site kwargs as scope and returns a concrete ctypes type.
             Factories are typically closures produced by `ndptr_f64`.
-        intent: Direction flag; see `Intent`.
+        out: `True` for a scalar output the invoker allocates and returns;
+            callers must not pass it. Everything else is passed through from
+            kwargs, including buffers FVS writes into in place.
     """
 
     name: str
     ctype: ParamType
-    intent: Intent = Intent.IN
+    out: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -109,20 +94,18 @@ class Routine:
         Catches structural misconfigurations that would otherwise surface as
         silently-skipped return-code validation at call time: declaring an
         `rc_policy` without an `rc_param`, or pointing
-        `rc_param` at a name that isn't a declared `Intent.OUT`
-        parameter. Return codes are write-only by convention, so `INOUT`
-        and `IN` params are rejected as `rc_param` targets.
+        `rc_param` at a name that isn't a declared `out` parameter.
         """
         if self.rc_policy is None:
             return
         if self.rc_param is None:
             msg = f"{self._label()}: rc_policy requires rc_param"
             raise ValueError(msg)
-        out_names = {p.name for p in self.params if p.intent == Intent.OUT}
+        out_names = {p.name for p in self.params if p.out}
         if self.rc_param not in out_names:
             msg = (
                 f"{self._label()}: rc_param {self.rc_param!r} must name an "
-                f"Intent.OUT param; OUT params are {sorted(out_names)}"
+                f"OUT param; OUT params are {sorted(out_names)}"
             )
             raise ValueError(msg)
 
@@ -150,9 +133,7 @@ class Routine:
                 supplied, or an OUT-only param is passed by the caller.
         """
         param_names = {p.name for p in self.params}
-        expected_inputs = {
-            p.name for p in self.params if p.intent != Intent.OUT
-        }
+        expected_inputs = {p.name for p in self.params if not p.out}
         provided = set(kwargs)
 
         missing = expected_inputs - provided
@@ -165,9 +146,7 @@ class Routine:
             msg = f"{self._label()}: unknown kwargs {sorted(unknown)}"
             raise TypeError(msg)
 
-        out_in_kwargs = provided & {
-            p.name for p in self.params if p.intent == Intent.OUT
-        }
+        out_in_kwargs = provided & {p.name for p in self.params if p.out}
         if out_in_kwargs:
             msg = (
                 f"{self._label()}: OUT params must not be provided by the "
@@ -182,7 +161,7 @@ class Routine:
         out_bufs: dict[str, Any] = {}
         call_args: list[Any] = []
         for p, t in zip(self.params, argtypes, strict=True):
-            if p.intent == Intent.OUT:
+            if p.out:
                 inner = getattr(t, "_type_", None)
                 if inner is None:
                     msg = (
@@ -251,60 +230,25 @@ def ndptr_f64(*dim_keys: str) -> Callable[[Scope], type]:
     return factory
 
 
-def species_code_policy(rc: int) -> None:
-    """Raise `IndexError` on `fvsSpeciesCode`'s out-of-range signal.
+def out_int(name: str) -> Param:
+    """A C-int scalar output, allocated by `Routine.call` and returned."""
+    return Param(name=name, ctype=ct.POINTER(ct.c_int), out=True)
 
-    The FVS API contract for `fvsSpeciesCode` is `0` = OK and `1` =
-    index is out of range. Any other value is treated as an unexpected
-    return code and surfaced as `RuntimeError` so the caller does
-    not silently proceed with a value they cannot interpret.
+
+def rc_policy(exc: type[Exception], msg: str) -> Callable[[int], None]:
+    """Build a policy for routines that report `0` = OK, `1` = `exc(msg)`.
+
+    Any other code raises `RuntimeError`.
     """
-    if rc == 0:
-        return
-    if rc == 1:
-        msg = "Species index out of range"
-        raise IndexError(msg)
-    msg = f"unrecognized fvsSpeciesCode return code: {rc}"
-    raise RuntimeError(msg)
 
+    def policy(rc: int) -> None:
+        if rc == 1:
+            raise exc(msg)
+        if rc != 0:
+            unexpected = f"unrecognized return code: {rc}"
+            raise RuntimeError(unexpected)
 
-def add_trees_policy(rc: int) -> None:
-    """Dispatch `fvsAddTrees`'s documented return-code contract.
-
-    The FVS API documents two codes for `fvsAddTrees`: `0` = OK and
-    `1` = there was not enough room to store the new trees. The latter
-    is surfaced as `ValueError` so callers can catch it alongside
-    the mixin's own capacity pre-check. Any other value is treated as an
-    unexpected return code and raised as `RuntimeError` so callers
-    do not silently proceed.
-    """
-    if rc == 0:
-        return
-    if rc == 1:
-        msg = "Not enough room to store the new trees"
-        raise ValueError(msg)
-    msg = f"unrecognized fvsAddTrees return code: {rc}"
-    raise RuntimeError(msg)
-
-
-def add_activity_policy(rc: int) -> None:
-    """Dispatch `fvsAddActivity`'s rFVS-documented return-code contract.
-
-    The FVS API wiki does not document `fvsAddActivity`'s return code,
-    but the rFVS reference binding specifies `0` = OK and `1` = some
-    error (cause unspecified). The error case is surfaced as
-    `ValueError` so callers can catch it alongside the mixin's
-    own pre-call guards (keyfile loaded, simulation started, etc.). Any
-    other value is treated as unexpected and raised as
-    `RuntimeError` so callers do not silently proceed.
-    """
-    if rc == 0:
-        return
-    if rc == 1:
-        msg = "fvsAddActivity failed to add the activity"
-        raise ValueError(msg)
-    msg = f"unrecognized fvsAddActivity return code: {rc}"
-    raise RuntimeError(msg)
+    return policy
 
 
 def attr_accessor_policy(rc: int) -> None:
@@ -332,77 +276,32 @@ def attr_accessor_policy(rc: int) -> None:
 
 
 _RAW_ROUTINES: dict[str, Routine] = {
-    # Entries are added alongside the corresponding mixin migration so every
-    # routine ships with a matching call site. Insertion order is the
-    # un-mangled FVS routine name; each entry lists its params in Fortran
-    # declaration order.
+    # Keyed by un-mangled FVS routine name; params in Fortran declaration order.
     "fvs": Routine(
-        params=(
-            Param(
-                name="itrncd",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.INOUT,
-            ),
-        ),
+        params=(Param(name="itrncd", ctype=ct.POINTER(ct.c_int)),),
         rc_param=None,
     ),
     "fvsGetICCode": Routine(
-        params=(
-            Param(
-                name="ic_code",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-        ),
+        params=(out_int("ic_code"),),
         rc_param=None,
     ),
     "fvsGetRtnCode": Routine(
-        params=(
-            Param(
-                name="rtn_code",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-        ),
+        params=(out_int("rtn_code"),),
         rc_param=None,
     ),
     "fvsGetRestartCode": Routine(
-        params=(
-            Param(
-                name="restart_code",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-        ),
+        params=(out_int("restart_code"),),
         rc_param=None,
     ),
     "fvsDimSizes": Routine(
         params=(
-            Param(
-                name=STR_NTREES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
-            ),
-            Param(
-                name=STR_NCYCLES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
-            ),
-            Param(
-                name=STR_NPLOTS, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
-            ),
-            Param(
-                name=STR_MAXTREES, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
-            ),
-            Param(
-                name=STR_MAXSPECIES,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_MAXPLOTS, ctype=ct.POINTER(ct.c_int), intent=Intent.OUT
-            ),
-            Param(
-                name=STR_MAXCYCLES,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int(STR_NTREES),
+            out_int(STR_NCYCLES),
+            out_int(STR_NPLOTS),
+            out_int(STR_MAXTREES),
+            out_int(STR_MAXSPECIES),
+            out_int(STR_MAXPLOTS),
+            out_int(STR_MAXCYCLES),
         ),
         rc_param=None,
     ),
@@ -410,11 +309,7 @@ _RAW_ROUTINES: dict[str, Routine] = {
         params=(
             Param(name="cmdline", ctype=ct.c_char_p),
             Param(name="nch", ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="itrncd",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.INOUT,
-            ),
+            Param(name="itrncd", ctype=ct.POINTER(ct.c_int)),
         ),
         rc_param=None,
     ),
@@ -427,9 +322,9 @@ _RAW_ROUTINES: dict[str, Routine] = {
     ),
     "fvsStandID": Routine(
         params=(
-            Param(name="stand_id", ctype=ct.c_char_p, intent=Intent.INOUT),
-            Param(name="stand_cn", ctype=ct.c_char_p, intent=Intent.INOUT),
-            Param(name="mgmt_id", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="stand_id", ctype=ct.c_char_p),
+            Param(name="stand_cn", ctype=ct.c_char_p),
+            Param(name="mgmt_id", ctype=ct.c_char_p),
             Param(name="stand_id_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="stand_cn_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="mgmt_id_len", ctype=ct.POINTER(ct.c_int)),
@@ -438,20 +333,16 @@ _RAW_ROUTINES: dict[str, Routine] = {
     ),
     "fvsSpeciesCode": Routine(
         params=(
-            Param(name="fvs_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
-            Param(name="fia_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
-            Param(name="plants_spp", ctype=ct.c_char_p, intent=Intent.INOUT),
+            Param(name="fvs_spp", ctype=ct.c_char_p),
+            Param(name="fia_spp", ctype=ct.c_char_p),
+            Param(name="plants_spp", ctype=ct.c_char_p),
             Param(name="index", ctype=ct.POINTER(ct.c_int)),
             Param(name="fvs_spp_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="fia_spp_len", ctype=ct.POINTER(ct.c_int)),
             Param(name="plants_spp_len", ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
-        rc_policy=species_code_policy,
+        rc_policy=rc_policy(IndexError, "Species index out of range"),
     ),
     "fvsSpeciesAttr": Routine(
         params=(
@@ -463,13 +354,8 @@ _RAW_ROUTINES: dict[str, Routine] = {
                 ctype=np.ctypeslib.ndpointer(
                     np.float64, flags=STR_C_CONTIGUOUS
                 ),
-                intent=Intent.INOUT,
             ),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
         rc_policy=attr_accessor_policy,
     ),
@@ -479,16 +365,8 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="nch", ctype=ct.POINTER(ct.c_int)),
             Param(name="action", ctype=ct.c_char_p),
             Param(name=STR_NTREES, ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="arr",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            Param(name="arr", ctype=ndptr_f64(STR_NTREES)),
+            out_int("rtncode"),
         ),
         rc_policy=attr_accessor_policy,
     ),
@@ -498,51 +376,19 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="nch", ctype=ct.POINTER(ct.c_int)),
             Param(name="action", ctype=ct.c_char_p),
             Param(name=STR_MAXSPECIES, ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="arr",
-                ctype=ndptr_f64(STR_MAXSPECIES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            Param(name="arr", ctype=ndptr_f64(STR_MAXSPECIES)),
+            out_int("rtncode"),
         ),
         rc_policy=attr_accessor_policy,
     ),
     "fvsSVSDimSizes": Routine(
         params=(
-            Param(
-                name=STR_NSVSOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_NDEADOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_NCWDOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_MXSVSOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_MXDEADOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
-            Param(
-                name=STR_MXCWDOBJS,
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int(STR_NSVSOBJS),
+            out_int(STR_NDEADOBJS),
+            out_int(STR_NCWDOBJS),
+            out_int(STR_MXSVSOBJS),
+            out_int(STR_MXDEADOBJS),
+            out_int(STR_MXCWDOBJS),
         ),
         rc_param=None,
     ),
@@ -552,59 +398,25 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="nch", ctype=ct.POINTER(ct.c_int)),
             Param(name="action", ctype=ct.c_char_p),
             Param(name=STR_NOBJS, ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="arr",
-                ctype=ndptr_f64(STR_NOBJS),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            Param(name="arr", ctype=ndptr_f64(STR_NOBJS)),
+            out_int("rtncode"),
         ),
         rc_policy=attr_accessor_policy,
     ),
     "fvsAddTrees": Routine(
         params=(
-            Param(
-                name="dbh",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="species",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="ht",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="cratio",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="plot",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
-            Param(
-                name="tpa",
-                ctype=ndptr_f64(STR_NTREES),
-                intent=Intent.INOUT,
-            ),
+            Param(name="dbh", ctype=ndptr_f64(STR_NTREES)),
+            Param(name="species", ctype=ndptr_f64(STR_NTREES)),
+            Param(name="ht", ctype=ndptr_f64(STR_NTREES)),
+            Param(name="cratio", ctype=ndptr_f64(STR_NTREES)),
+            Param(name="plot", ctype=ndptr_f64(STR_NTREES)),
+            Param(name="tpa", ctype=ndptr_f64(STR_NTREES)),
             Param(name=STR_NTREES, ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
-        rc_policy=add_trees_policy,
+        rc_policy=rc_policy(
+            ValueError, "Not enough room to store the new trees"
+        ),
     ),
     "fvsEvmonAttr": Routine(
         params=(
@@ -612,15 +424,9 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="nch", ctype=ct.POINTER(ct.c_int)),
             Param(name="action", ctype=ct.c_char_p),
             Param(
-                name="arr",
-                ctype=np.ctypeslib.ndpointer(np.float64, shape=(1,)),
-                intent=Intent.INOUT,
+                name="arr", ctype=np.ctypeslib.ndpointer(np.float64, shape=(1,))
             ),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
         rc_policy=attr_accessor_policy,
     ),
@@ -630,30 +436,24 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="activity_code", ctype=ct.POINTER(ct.c_int)),
             Param(name="params", ctype=ndptr_f64("nparams")),
             Param(name="nparams", ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
-        rc_policy=add_activity_policy,
+        # The FVS API docs don't cover this return code; 1 = error per rFVS.
+        rc_policy=rc_policy(
+            ValueError, "fvsAddActivity failed to add the activity"
+        ),
     ),
     "fvsSummary": Routine(
         params=(
             Param(
                 name="summary",
                 ctype=np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),
-                intent=Intent.INOUT,
             ),
             Param(name="icycle", ctype=ct.POINTER(ct.c_int)),
             Param(name="ncycles", ctype=ct.POINTER(ct.c_int)),
             Param(name="maxrow", ctype=ct.POINTER(ct.c_int)),
             Param(name="maxcol", ctype=ct.POINTER(ct.c_int)),
-            Param(
-                name="rtncode",
-                ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
-            ),
+            out_int("rtncode"),
         ),
     ),
 }

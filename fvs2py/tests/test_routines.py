@@ -17,14 +17,11 @@ import pytest
 
 from fvs2py._routines import (
     FVS_ROUTINES,
-    Intent,
     Param,
     Routine,
-    add_activity_policy,
-    add_trees_policy,
     attr_accessor_policy,
     ndptr_f64,
-    species_code_policy,
+    rc_policy,
 )
 from fvs2py.enums import FvsAttrReturnCode
 
@@ -96,48 +93,17 @@ def test_attr_accessor_policy_dispatches_by_return_code(rc, exc, match):
     ("rc", "exc", "match"),
     [
         (0, None, None),
-        (1, IndexError, "Species index out of range"),
-        (999, RuntimeError, "unrecognized fvsSpeciesCode return code"),
+        (1, IndexError, "boom"),
+        (999, RuntimeError, "unrecognized return code: 999"),
     ],
 )
-def test_species_code_policy_dispatches_by_return_code(rc, exc, match):
+def test_rc_policy_dispatches_by_return_code(rc, exc, match):
+    policy = rc_policy(IndexError, "boom")
     if exc is None:
-        assert species_code_policy(rc) is None
+        assert policy(rc) is None
     else:
         with pytest.raises(exc, match=match):
-            species_code_policy(rc)
-
-
-@pytest.mark.parametrize(
-    ("rc", "exc", "match"),
-    [
-        (0, None, None),
-        (1, ValueError, "Not enough room to store the new trees"),
-        (999, RuntimeError, "unrecognized fvsAddTrees return code"),
-    ],
-)
-def test_add_trees_policy_dispatches_by_return_code(rc, exc, match):
-    if exc is None:
-        assert add_trees_policy(rc) is None
-    else:
-        with pytest.raises(exc, match=match):
-            add_trees_policy(rc)
-
-
-@pytest.mark.parametrize(
-    ("rc", "exc", "match"),
-    [
-        (0, None, None),
-        (1, ValueError, "fvsAddActivity failed to add the activity"),
-        (999, RuntimeError, "unrecognized fvsAddActivity return code"),
-    ],
-)
-def test_add_activity_policy_dispatches_by_return_code(rc, exc, match):
-    if exc is None:
-        assert add_activity_policy(rc) is None
-    else:
-        with pytest.raises(exc, match=match):
-            add_activity_policy(rc)
+            policy(rc)
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +142,7 @@ def test_call_resolves_dynamic_ctype_factory_against_kwargs():
     routine = Routine(
         params=(
             Param(name="n", ctype=ct.POINTER(ct.c_int)),
-            Param(name="arr", ctype=ndptr_f64("n"), intent=Intent.INOUT),
+            Param(name="arr", ctype=ndptr_f64("n")),
         ),
         rc_param=None,
     )
@@ -195,9 +161,7 @@ def test_call_resolves_dynamic_ctype_factory_against_kwargs():
 
 def test_call_single_out_returns_unwrapped_scalar():
     routine = Routine(
-        params=(
-            Param(name="out", ctype=ct.POINTER(ct.c_int), intent=Intent.OUT),
-        ),
+        params=(Param(name="out", ctype=ct.POINTER(ct.c_int), out=True),),
         rc_param=None,
     )
 
@@ -211,9 +175,9 @@ def test_call_single_out_returns_unwrapped_scalar():
 def test_call_multiple_outs_returned_as_dict_by_name():
     routine = Routine(
         params=(
-            Param(name="a", ctype=ct.POINTER(ct.c_int), intent=Intent.OUT),
-            Param(name="b", ctype=ct.POINTER(ct.c_int), intent=Intent.OUT),
-            Param(name="c", ctype=ct.POINTER(ct.c_int), intent=Intent.OUT),
+            Param(name="a", ctype=ct.POINTER(ct.c_int), out=True),
+            Param(name="b", ctype=ct.POINTER(ct.c_int), out=True),
+            Param(name="c", ctype=ct.POINTER(ct.c_int), out=True),
         ),
         rc_param=None,
     )
@@ -229,7 +193,7 @@ def test_call_inout_buffer_is_passed_by_reference_and_reflects_writes():
     routine = Routine(
         params=(
             Param(name="n", ctype=ct.POINTER(ct.c_int)),
-            Param(name="buf", ctype=ndptr_f64("n"), intent=Intent.INOUT),
+            Param(name="buf", ctype=ndptr_f64("n")),
         ),
         rc_param=None,
     )
@@ -263,7 +227,7 @@ def test_call_rc_policy_fires_with_return_code_value():
             Param(
                 name="rtncode",
                 ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
+                out=True,
             ),
         ),
         rc_policy=policy,
@@ -281,12 +245,12 @@ def test_call_returns_non_rc_outs_excluding_rtncode():
             Param(
                 name="value",
                 ctype=ct.POINTER(ct.c_double),
-                intent=Intent.OUT,
+                out=True,
             ),
             Param(
                 name="rtncode",
                 ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
+                out=True,
             ),
         ),
         rc_policy=lambda _rc: None,
@@ -334,7 +298,7 @@ def test_call_out_param_in_kwargs_raises_typeerror():
             Param(
                 name="rtncode",
                 ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
+                out=True,
             ),
         ),
         name="fvsStub",
@@ -370,7 +334,7 @@ def test_post_init_rejects_rc_policy_without_rc_param():
                 Param(
                     name="out",
                     ctype=ct.POINTER(ct.c_int),
-                    intent=Intent.OUT,
+                    out=True,
                 ),
             ),
             rc_param=None,
@@ -381,14 +345,14 @@ def test_post_init_rejects_rc_policy_without_rc_param():
 
 def test_post_init_rejects_rc_param_not_naming_an_out_param():
     with pytest.raises(
-        ValueError, match="rc_param 'missing' must name an Intent.OUT param"
+        ValueError, match="rc_param 'missing' must name an OUT param"
     ):
         Routine(
             params=(
                 Param(
                     name="rtncode",
                     ctype=ct.POINTER(ct.c_int),
-                    intent=Intent.OUT,
+                    out=True,
                 ),
             ),
             rc_param="missing",
@@ -397,10 +361,8 @@ def test_post_init_rejects_rc_param_not_naming_an_out_param():
         )
 
 
-def test_post_init_rejects_rc_param_naming_non_out_intent():
-    with pytest.raises(
-        ValueError, match="rc_param 'x' must name an Intent.OUT param"
-    ):
+def test_post_init_rejects_rc_param_naming_non_out_param():
+    with pytest.raises(ValueError, match="rc_param 'x' must name an OUT param"):
         Routine(
             params=(Param(name="x", ctype=ct.POINTER(ct.c_int)),),
             rc_param="x",
@@ -422,7 +384,7 @@ def test_post_init_allows_rc_param_without_rc_policy():
 # ---------------------------------------------------------------------------
 # End-to-end: attr-accessor shape exercised via an inline Routine
 #
-# Composes every piece (Intent, dynamic `ndptr_f64` factory,
+# Composes every piece (out params, dynamic `ndptr_f64` factory,
 # `attr_accessor_policy`, OUT auto-allocation, kwarg dispatch) without
 # depending on a registry entry. Once `FVS_ROUTINES` carries
 # `fvsTreeAttr` (or similar), this pattern is exactly what the mixin call
@@ -447,12 +409,11 @@ def test_attr_accessor_shape_end_to_end(rc, expected_exc, expected_match):
             Param(
                 name="values",
                 ctype=ndptr_f64("ntrees"),
-                intent=Intent.INOUT,
             ),
             Param(
                 name="rtncode",
                 ctype=ct.POINTER(ct.c_int),
-                intent=Intent.OUT,
+                out=True,
             ),
         ),
         rc_policy=attr_accessor_policy,
