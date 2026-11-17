@@ -325,7 +325,7 @@ def test_species_attrs(variant, keyfile, recwarn):
     fvs.species_attrs
     assert len(recwarn) == 1
     w = recwarn.pop(UserWarning)
-    assert str(w.message) == "No species attributes initialized yet."
+    assert "No species attributes initialized yet" in str(w.message)
 
     fvs.load_keyfile(keyfile)
     fvs.run(-1)

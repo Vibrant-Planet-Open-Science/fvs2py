@@ -50,11 +50,12 @@ class _Stub:
 # ---------------------------------------------------------------------------
 
 
-def test_ndptr_f64_resolves_shape_and_dtype_from_scope():
-    factory = ndptr_f64("rows", "cols")
-    cls = factory({"rows": ct.c_int(2), "cols": ct.c_int(3)})
-    assert cls._shape_ == (2, 3)
-    assert cls._dtype_ == np.dtype(np.float64)
+def test_ndptr_f64_accepts_only_the_scoped_shape_and_float64():
+    cls = ndptr_f64("rows", "cols")({"rows": ct.c_int(2), "cols": ct.c_int(3)})
+    cls.from_param(np.zeros((2, 3)))
+    for bad in (np.zeros((3, 2)), np.zeros((2, 3), dtype=np.intc)):
+        with pytest.raises(TypeError):
+            cls.from_param(bad)
 
 
 @pytest.mark.parametrize(
@@ -149,8 +150,9 @@ def test_call_resolves_dynamic_ctype_factory_against_kwargs():
     arr = np.zeros(4, dtype=np.float64)
     routine.call(stub, n=ct.c_int(4), arr=arr)
     ndptr_cls = stub.argtypes[1]
-    assert ndptr_cls._shape_ == (4,)
-    assert ndptr_cls._dtype_ == np.dtype(np.float64)
+    ndptr_cls.from_param(np.zeros(4))
+    with pytest.raises(TypeError):
+        ndptr_cls.from_param(np.zeros(5))
 
 
 # ---------------------------------------------------------------------------
