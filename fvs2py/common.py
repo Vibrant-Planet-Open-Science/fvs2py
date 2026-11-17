@@ -31,9 +31,9 @@ def load_dll(dll_path: str | os.PathLike) -> ct.CDLL:
 def unload_dll(dll: ct.CDLL) -> None:
     """Unloads a native FVS library.
 
-    Uses `FreeLibrary` on Windows and `dlclose` elsewhere (Linux and
-    macOS). On success the handle is zeroed so a repeat unload cannot hand
-    a stale handle back to the loader.
+    Uses `FreeLibrary` on Windows and `dlclose` elsewhere (Linux and macOS). On
+    success the handle is zeroed so a repeat unload cannot hand a stale handle
+    back to the loader.
 
     Args:
         dll: the loaded DLL.
@@ -42,47 +42,20 @@ def unload_dll(dll: ct.CDLL) -> None:
         RuntimeError: if the platform loader refused to unload the library.
     """
     if sys.platform == "win32":
-        _free_library(dll._handle)
-    else:
-        _dlclose(dll._handle)
-    dll._handle = 0
-    logging.debug("Library unloaded successfully.")
-
-
-if sys.platform == "win32":
-
-    def _free_library(handle: int) -> None:
-        """Release a loaded library handle with the Windows `FreeLibrary`.
-
-        Args:
-            handle: the `_handle` of the loaded library.
-
-        Raises:
-            RuntimeError: if `FreeLibrary` reports failure.
-        """
-        kernel32 = ct.WinDLL("kernel32", use_last_error=True)
-        free_library = kernel32.FreeLibrary
+        free_library = ct.WinDLL("kernel32", use_last_error=True).FreeLibrary
         free_library.argtypes = (ct.c_void_p,)
         free_library.restype = ct.c_int
-        if not free_library(handle):
+        if not free_library(dll._handle):
             err = ct.get_last_error()
             msg = f"Failed to unload DLL: FreeLibrary error {err}"
             raise RuntimeError(msg)
-
-
-def _dlclose(handle: int) -> None:
-    """Release a loaded library handle with the POSIX `dlclose`.
-
-    Args:
-        handle: the `_handle` of the loaded library.
-
-    Raises:
-        RuntimeError: if `dlclose` returns non-zero.
-    """
-    close_func = ct.CDLL(None).dlclose
-    close_func.argtypes = (ct.c_void_p,)
-    close_func.restype = ct.c_int
-    result = close_func(handle)
-    if result != 0:
-        msg = f"Failed to unload DLL: {result}"
-        raise RuntimeError(msg)
+    else:
+        dlclose = ct.CDLL(None).dlclose
+        dlclose.argtypes = (ct.c_void_p,)
+        dlclose.restype = ct.c_int
+        result = dlclose(dll._handle)
+        if result != 0:
+            msg = f"Failed to unload DLL: {result}"
+            raise RuntimeError(msg)
+    dll._handle = 0
+    logging.debug("Library unloaded successfully.")
