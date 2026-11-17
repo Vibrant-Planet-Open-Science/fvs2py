@@ -17,15 +17,14 @@ class EventMixin:
     """Expose Event Monitor variable access and FVS activity scheduling.
 
     Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch, `self.keyfile` and `self.stop_point_code` from
-    `ControlMixin`, `self.dims` from `StandMixin`, and the
+    dispatch, `_require_keyfile` from `ControlMixin`, `self.dims` from
+    `StandMixin`, and the
     `_evmon_attrs` buffer seeded by `FVS._initialize_attributes`.
     """
 
     _invoke: Callable[..., Any]
     _evmon_attrs: dict[str, None]
-    keyfile: str | None
-    stop_point_code: int | None
+    _require_keyfile: Callable[..., None]
     dims: dict
 
     @property
@@ -65,8 +64,8 @@ class EventMixin:
 
         Raises:
             NameError: If FVS does not recognize `attr`.
-            KeyError: If no keyfile has been loaded.
-            RuntimeError: If the simulation has not been started.
+            RuntimeError: If no keyfile has been loaded or the simulation
+                has not been started.
         """
         return self._evmon_attr(attr)
 
@@ -86,8 +85,8 @@ class EventMixin:
 
         Raises:
             NameError: If FVS does not recognize `attr`.
-            KeyError: If no keyfile has been loaded.
-            RuntimeError: If the simulation has not been started.
+            RuntimeError: If no keyfile has been loaded or the simulation
+                has not been started.
         """
         if attr not in self._evmon_attrs:
             self._evmon_attrs[attr] = None
@@ -95,15 +94,7 @@ class EventMixin:
 
     def _evmon_attr(self, attr: str, val: float | None = None) -> float | None:
         """Get `attr` when `val` is `None`, otherwise set it to `val`."""
-        if self.keyfile is None:
-            msg = "No keyfile loaded yet."
-            raise KeyError(msg)
-        if self.stop_point_code is None:
-            msg = (
-                "Simulation has not yet started and no inventory data have "
-                "been loaded yet. Call `run` method."
-            )
-            raise RuntimeError(msg)
+        self._require_keyfile(started=True)
 
         if self.dims[STR_NCYCLES] == 0:
             return None
@@ -134,9 +125,8 @@ class EventMixin:
                 See the warning below.
 
         Raises:
-            KeyError: If no keyfile has been loaded.
-            RuntimeError: If the simulation has not been started or no
-                inventory has been loaded.
+            RuntimeError: If no keyfile has been loaded, the simulation has
+                not been started, or no inventory has been loaded.
             ValueError: If FVS reports a failure
                 (`fvsAddActivity` rtncode == 1).
 
@@ -168,12 +158,7 @@ class EventMixin:
             supplies every field explicitly, e.g.
             `params=[80.0, 1.0, 0.0, 999.0, 0.0, 999.0]`.
         """
-        if self.keyfile is None:
-            msg = "No keyfile loaded yet."
-            raise KeyError(msg)
-        if self.stop_point_code is None:
-            msg = "Simulation hasn't been started yet. Call `run` method."
-            raise RuntimeError(msg)
+        self._require_keyfile(started=True)
         if self.dims[STR_NCYCLES] == 0:
             msg = (
                 "No inventory plots loaded yet. Consider FVS.run(7, 0) to "

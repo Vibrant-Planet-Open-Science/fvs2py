@@ -148,16 +148,30 @@ class ControlMixin:
                 )
                 raise ValueError(msg) from exc
 
-        cmdline = f"--keywordfile={self.keyfile_path}"
-        nch = len(cmdline)
+        self._set_cmdline(f"--keywordfile={self.keyfile_path}")
+        logging.debug(f"Return code updated to {self.itrncd}")
 
+    def _set_cmdline(self, cmdline: str) -> None:
+        """Pass `cmdline` to FVS as if it were the executable's arguments."""
+        encoded = cmdline.encode()
         self._invoke(
             "fvsSetCmdLine",
-            cmdline=cmdline.encode(),
-            nch=ct.c_int(nch),
+            cmdline=encoded,
+            nch=ct.c_int(len(encoded)),
             itrncd=self._itrncd,
         )
-        logging.debug(f"Return code updated to {self.itrncd}")
+
+    def _require_keyfile(self, *, started: bool = False) -> None:
+        """Raise `RuntimeError` unless a keyfile is loaded.
+
+        With `started=True`, also require that `run` has been called.
+        """
+        if self.keyfile is None:
+            msg = "No keyfile loaded yet. Call `load_keyfile` first."
+            raise RuntimeError(msg)
+        if started and self.stop_point_code is None:
+            msg = "Simulation has not started yet. Call `run` first."
+            raise RuntimeError(msg)
 
     def set_stop_point_codes(
         self,

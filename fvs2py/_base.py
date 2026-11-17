@@ -16,7 +16,6 @@ from fvs2py._mixins import (
     TreesMixin,
 )
 from fvs2py.constants import EVMON_ATTRS
-from fvs2py.enums import FvsSimulationState
 
 
 class FVS(
@@ -60,7 +59,6 @@ class FVS(
         self._mgmt_id = ct.create_string_buffer(4)
         self._stand_cn = ct.create_string_buffer(40)
         self._stand_id = ct.create_string_buffer(26)
-        self._state = FvsSimulationState.IDLE
         self._stop_point_code = None
         self._stop_point_year = None
 

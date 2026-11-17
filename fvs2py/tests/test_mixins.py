@@ -46,7 +46,6 @@ from fvs2py.enums import (
     FvsBaseActivity,
     FvsItrnCode,
     FvsRestartCode,
-    FvsSimulationState,
 )
 
 # ---------------------------------------------------------------------------
@@ -106,17 +105,14 @@ def test_stand_mixin_dims_returns_named_dict():
 
 def test_stand_mixin_stand_ids_without_keyfile_raises():
     stub = _StandStub()
-    with pytest.raises(AttributeError, match="Keyfile not loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         stub.stand_ids
 
 
 def test_stand_mixin_stand_ids_without_run_raises():
     stub = _StandStub()
     stub.keyfile = "STDIDENT\n"
-    with pytest.raises(
-        RuntimeError,
-        match="No inventory data loaded yet. Call `run` method.",
-    ):
+    with pytest.raises(RuntimeError, match="Simulation has not started yet."):
         stub.stand_ids
 
 
@@ -150,11 +146,6 @@ class _SimulationStub(SimulationMixin):
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
         self.keyfile = None
         self._itrncd = ct.c_int(-1)
-        self._state = FvsSimulationState.IDLE
-        # SimulationMixin.run() reads these via an f-string in logging.debug,
-        # so they must exist regardless of log level.
-        self.stop_point_code = 0
-        self.stop_point_year = 0
         self.fvs_call_count = 0
 
         def writer(value):
@@ -171,6 +162,8 @@ class _SimulationStub(SimulationMixin):
         self._fvsGetRestartCode = writer(restart_code)
         self._fvs = fvs
         self.set_stop_point_codes = lambda *_args: None
+
+    _require_keyfile = ControlMixin._require_keyfile
 
     def _invoke(self, name, /, **kwargs):
         return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
@@ -193,25 +186,14 @@ def test_simulation_mixin_restart_code_reads_fvs_output():
 
 def test_simulation_mixin_run_without_keyfile_raises():
     stub = _SimulationStub()
-    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         stub.run()
 
 
-def test_simulation_mixin_run_guards_against_reentrant_call():
-    stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
-    stub.keyfile = "STDIDENT\n"
-    stub._state = FvsSimulationState.RUNNING
-    with pytest.raises(RuntimeError, match="Simulation already in progress"):
-        stub.run()
-
-
-def test_simulation_mixin_run_sets_state_complete_on_success():
-    # itrncd != GOOD_RUNNING_STATE → loop never enters; restart_code != DONE →
-    # no flush call. We only observe the state transition IDLE → COMPLETE.
+def test_simulation_mixin_run_does_not_flush_when_stand_not_done():
     stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
     stub.keyfile = "STDIDENT\n"
     stub.run()
-    assert stub._state == FvsSimulationState.COMPLETE
     assert stub.fvs_call_count == 0
 
 
@@ -225,36 +207,11 @@ def test_simulation_mixin_run_flushes_when_stand_done():
     stub.keyfile = "STDIDENT\n"
     stub.run()
     assert stub.fvs_call_count == 1
-    assert stub._state == FvsSimulationState.COMPLETE
-
-
-def test_simulation_mixin_run_sets_state_error_on_exception():
-    # itrncd=GOOD_RUNNING_STATE forces the while-loop to call _fvs at least
-    # once; we make that call blow up to exercise the state=ERROR transition.
-    stub = _SimulationStub(itrncd=int(FvsItrnCode.GOOD_RUNNING_STATE))
-    stub.keyfile = "STDIDENT\n"
-
-    def boom(_itrncd_ptr):
-        msg = "boom"
-        raise RuntimeError(msg)
-
-    stub._fvs = boom
-    with pytest.raises(RuntimeError, match="boom"):
-        stub.run()
-    assert stub._state == FvsSimulationState.ERROR
 
 
 def test_simulation_mixin_run_batch_without_keyfile_raises():
     stub = _SimulationStub()
-    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
-        stub.run_batch()
-
-
-def test_simulation_mixin_run_batch_guards_against_reentrant_call():
-    stub = _SimulationStub(itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS))
-    stub.keyfile = "STDIDENT\n"
-    stub._state = FvsSimulationState.RUNNING
-    with pytest.raises(RuntimeError, match="Simulation already in progress"):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         stub.run_batch()
 
 
@@ -270,21 +227,6 @@ def test_simulation_mixin_run_batch_does_not_flush_on_stand_done():
     stub.keyfile = "STDIDENT\n"
     stub.run_batch()
     assert stub.fvs_call_count == 0
-    assert stub._state == FvsSimulationState.COMPLETE
-
-
-def test_simulation_mixin_run_batch_sets_state_error_on_exception():
-    stub = _SimulationStub(itrncd=int(FvsItrnCode.GOOD_RUNNING_STATE))
-    stub.keyfile = "STDIDENT\n"
-
-    def boom(_itrncd_ptr):
-        msg = "boom"
-        raise RuntimeError(msg)
-
-    stub._fvs = boom
-    with pytest.raises(RuntimeError, match="boom"):
-        stub.run_batch()
-    assert stub._state == FvsSimulationState.ERROR
 
 
 # ---------------------------------------------------------------------------
@@ -702,19 +644,21 @@ class _EventStub(EventMixin):
         self._fvsEvmonAttr = fvs_evmon_attr
         self._fvsAddActivity = fvs_add_activity
 
+    _require_keyfile = ControlMixin._require_keyfile
+
     def _invoke(self, name, /, **kwargs):
         return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
 
 
-def test_event_mixin_evmon_attr_without_keyfile_raises_keyerror():
+def test_event_mixin_evmon_attr_without_keyfile_raises_runtimeerror():
     stub = _EventStub(keyfile=None)
-    with pytest.raises(KeyError, match="No keyfile loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         stub.get_evmon_attr("year")
 
 
 def test_event_mixin_evmon_attr_without_stop_point_raises_runtimeerror():
     stub = _EventStub(stop_point_code=None)
-    with pytest.raises(RuntimeError, match="Simulation has not yet started"):
+    with pytest.raises(RuntimeError, match="Simulation has not started yet"):
         stub.get_evmon_attr("year")
 
 
@@ -749,15 +693,15 @@ def test_event_mixin_evmon_attrs_property_tolerates_name_not_found():
     assert result["fire"] is None
 
 
-def test_event_mixin_add_activity_without_keyfile_raises_keyerror():
+def test_event_mixin_add_activity_without_keyfile_raises_runtimeerror():
     stub = _EventStub(keyfile=None)
-    with pytest.raises(KeyError, match="No keyfile loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         stub.add_activity(2025, FvsBaseActivity.THINPRSC)
 
 
 def test_event_mixin_add_activity_without_stop_point_raises_runtimeerror():
     stub = _EventStub(stop_point_code=None)
-    with pytest.raises(RuntimeError, match="Simulation hasn't been started"):
+    with pytest.raises(RuntimeError, match="Simulation has not started yet"):
         stub.add_activity(2025, FvsBaseActivity.THINPRSC)
 
 

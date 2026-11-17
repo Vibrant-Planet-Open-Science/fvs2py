@@ -191,12 +191,12 @@ def test_load_keyfile_multi_stand_raises_with_bypass_hint(
 
 
 def test_run_batch_without_keyfile_raises(fvs):
-    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         fvs.run_batch()
 
 
 def test_run_without_keyfile_raises(fvs):
-    with pytest.raises(AttributeError, match="No keyfile loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         fvs.run()
 
 
@@ -261,14 +261,12 @@ def test_dims(keyfile):
 
 
 def test_stand_ids_without_load(fvs, keyfile):
-    with pytest.raises(AttributeError, match="Keyfile not loaded yet."):
+    with pytest.raises(RuntimeError, match="No keyfile loaded yet."):
         fvs.stand_ids
 
     fvs.load_keyfile(keyfile)
 
-    with pytest.raises(
-        RuntimeError, match="No inventory data loaded yet. Call `run` method."
-    ):
+    with pytest.raises(RuntimeError, match="Simulation has not started yet."):
         fvs.stand_ids
 
     fvs.run(-1)

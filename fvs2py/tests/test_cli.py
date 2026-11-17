@@ -9,10 +9,11 @@ from pathlib import Path
 import pytest
 
 from fvs2py import cli
+from fvs2py._mixins.control import ControlMixin
 from fvs2py.enums import FvsVariant
 
 
-class FakeFVS:
+class FakeFVS(ControlMixin):
     """Stands in for FVS: finishes after one `fvs` call with ICCode 2."""
 
     def __init__(self):

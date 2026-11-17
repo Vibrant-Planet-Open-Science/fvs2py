@@ -14,7 +14,6 @@ Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 from __future__ import annotations
 
 import argparse
-import ctypes as ct
 import faulthandler
 import os
 import sys
@@ -58,13 +57,7 @@ def main(argv: list[str] | None = None) -> int:
 
     fvs = FVS(args.lib)
 
-    cmdline = " ".join(fvs_args).encode()
-    fvs._invoke(
-        "fvsSetCmdLine",
-        cmdline=cmdline,
-        nch=ct.c_int(len(cmdline)),
-        itrncd=fvs._itrncd,
-    )
+    fvs._set_cmdline(" ".join(fvs_args))
     while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
         fvs._invoke("fvs", itrncd=fvs._itrncd)
 
