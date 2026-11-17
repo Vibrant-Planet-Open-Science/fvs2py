@@ -221,7 +221,7 @@ def ndptr_f64(*dim_keys: str) -> Callable[[Scope], type]:
 
     def factory(scope: Scope) -> type:
         shape = tuple(scope[k].value for k in dim_keys)
-        return np.ctypeslib.ndpointer(  # type: ignore[return-value]
+        return np.ctypeslib.ndpointer(
             np.float64, shape=shape, flags=STR_C_CONTIGUOUS
         )
 

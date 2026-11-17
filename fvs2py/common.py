@@ -49,23 +49,25 @@ def unload_dll(dll: ct.CDLL) -> None:
     logging.debug("Library unloaded successfully.")
 
 
-def _free_library(handle: int) -> None:
-    """Release a loaded library handle with the Windows `FreeLibrary`.
+if sys.platform == "win32":
 
-    Args:
-        handle: the `_handle` of the loaded library.
+    def _free_library(handle: int) -> None:
+        """Release a loaded library handle with the Windows `FreeLibrary`.
 
-    Raises:
-        RuntimeError: if `FreeLibrary` reports failure.
-    """
-    kernel32 = ct.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
-    free_library = kernel32.FreeLibrary
-    free_library.argtypes = (ct.c_void_p,)
-    free_library.restype = ct.c_int
-    if not free_library(handle):
-        err = ct.get_last_error()  # type: ignore[attr-defined]
-        msg = f"Failed to unload DLL: FreeLibrary error {err}"
-        raise RuntimeError(msg)
+        Args:
+            handle: the `_handle` of the loaded library.
+
+        Raises:
+            RuntimeError: if `FreeLibrary` reports failure.
+        """
+        kernel32 = ct.WinDLL("kernel32", use_last_error=True)
+        free_library = kernel32.FreeLibrary
+        free_library.argtypes = (ct.c_void_p,)
+        free_library.restype = ct.c_int
+        if not free_library(handle):
+            err = ct.get_last_error()
+            msg = f"Failed to unload DLL: FreeLibrary error {err}"
+            raise RuntimeError(msg)
 
 
 def _dlclose(handle: int) -> None:

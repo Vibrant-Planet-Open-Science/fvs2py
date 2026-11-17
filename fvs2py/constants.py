@@ -1,4 +1,7 @@
-STR_C_CONTIGUOUS = "C_CONTIGUOUS"
+from typing import Final
+
+# Final, so type checkers see the Literal that ndpointer's `flags` wants.
+STR_C_CONTIGUOUS: Final = "C_CONTIGUOUS"
 # core forest vegetation simulator attribute names
 STR_MAXCYCLES = "maxcycles"
 STR_MAXPLOTS = "maxplots"
