@@ -1,11 +1,10 @@
 """Unit tests for `fvs2py._routines`.
 
-The invoker dispatches ctypes calls without a loaded FVS library by relying
-on plain Python callables as stand-ins for resolved foreign functions. These
-tests exercise dispatch order, dynamic ctype resolution, OUT-param auto
-allocation, return-code policy dispatch, and kwarg validation. Registry
-invariants are asserted against the module-level `FVS_ROUTINES`
-mapping and stay vacuously true until later PRs populate it.
+The invoker dispatches ctypes calls without a loaded FVS library by relying on
+plain Python callables as stand-ins for resolved foreign functions. These tests
+exercise dispatch order, dynamic ctype resolution, OUT-param auto allocation,
+return-code policy dispatch, and kwarg validation. Registry invariants are
+asserted against the module-level `FVS_ROUTINES` mapping.
 """
 
 from __future__ import annotations
@@ -29,9 +28,9 @@ from fvs2py.enums import FvsAttrReturnCode
 class _Stub:
     """Python callable usable as a ctypes `_FuncPointer` stand-in.
 
-    Records positional args from the most recent call, permits `argtypes`
-    and `restype` attribute assignment (mirroring the ctypes API), and
-    optionally runs a writer to populate OUT buffers.
+    Records positional args from the most recent call, permits `argtypes` and
+    `restype` attribute assignment (mirroring the ctypes API), and optionally
+    runs a writer to populate OUT buffers.
     """
 
     def __init__(self, writer=None):
@@ -312,8 +311,7 @@ def test_call_out_param_in_kwargs_raises_typeerror():
 # ---------------------------------------------------------------------------
 # FVS_ROUTINES registry invariants
 #
-# Each iterates over `FVS_ROUTINES.items()` and thus applies to every
-# entry contributed by a mixin migration.
+# Each iterates over `FVS_ROUTINES.items()` and thus applies to every entry.
 # ---------------------------------------------------------------------------
 
 
@@ -372,8 +370,8 @@ def test_post_init_rejects_rc_param_naming_non_out_param():
 
 
 def test_post_init_allows_rc_param_without_rc_policy():
-    # Routine reports a return code but we don't care about it; no policy is
-    # a legitimate opt-out and must not be rejected.
+    # Routine reports a return code but we don't care about it; no policy is a
+    # legitimate opt-out and must not be rejected.
     Routine(
         params=(Param(name="x", ctype=ct.c_int),),
         rc_param="rtncode",
@@ -385,10 +383,8 @@ def test_post_init_allows_rc_param_without_rc_policy():
 # End-to-end: attr-accessor shape exercised via an inline Routine
 #
 # Composes every piece (out params, dynamic `ndptr_f64` factory,
-# `attr_accessor_policy`, OUT auto-allocation, kwarg dispatch) without
-# depending on a registry entry. Once `FVS_ROUTINES` carries
-# `fvsTreeAttr` (or similar), this pattern is exactly what the mixin call
-# site will hand to `FvsCore._invoke`.
+# `attr_accessor_policy`, OUT auto-allocation, kwarg dispatch) without depending
+# on a registry entry.
 # ---------------------------------------------------------------------------
 
 

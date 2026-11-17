@@ -1,16 +1,15 @@
 """Declarative registry of FVS routine signatures + a thin invoker.
 
-Each FVS routine is described by a `Routine` whose parameters are
-`Param` records carrying a name, a ctypes type (static or a runtime
-factory closure over the call kwargs), and an `out` flag for scalar
-outputs. `Routine.call` resolves dynamic types, auto-allocates
-output buffers, assigns `argtypes`/`restype` on the resolved foreign
-function, invokes it, and dispatches any configured return-code policy.
+Each FVS routine is described by a `Routine` whose parameters are `Param`
+records carrying a name, a ctypes type (static or a runtime factory closure over
+the call kwargs), and an `out` flag for scalar outputs. `Routine.call` resolves
+dynamic types, auto-allocates output buffers, assigns `argtypes`/`restype` on
+the resolved foreign function, invokes it, and dispatches any configured
+return-code policy.
 
-Mixin methods own Python-facing ergonomics and derive dependent args (e.g.
-`nattr = len(attr)`, `ntrees = len(values)`) before handing a
-fully-specified kwarg dict to `FvsCore._invoke`. The registry itself
-stays free of derivation or validation logic.
+Callers derive dependent args (e.g. `nch = len(attr)`) before handing a
+fully-specified kwarg dict to `FvsCore._invoke`. The registry itself stays free
+of derivation or validation logic.
 """
 
 from __future__ import annotations
@@ -71,15 +70,15 @@ class Routine:
 
     Attributes:
         params: Parameters in Fortran declaration order.
-        restype: Ctypes return type, or `None` if the routine returns
-            nothing (the usual case for FVS subroutines).
+        restype: Ctypes return type, or `None` if the routine returns nothing
+            (the usual case for FVS subroutines).
         rc_param: Name of the return-code OUT parameter, or `None` if the
             routine does not report a return code.
         rc_policy: Callable invoked with the return-code integer after a
             successful call; should raise on error and return `None` on OK.
         name: Routine identifier used in error messages. Populated from the
-            `FVS_ROUTINES` mapping key; construction-site entries may
-            leave it empty.
+            `FVS_ROUTINES` mapping key; construction-site entries may leave it
+            empty.
     """
 
     params: tuple[Param, ...]
@@ -93,8 +92,8 @@ class Routine:
 
         Catches structural misconfigurations that would otherwise surface as
         silently-skipped return-code validation at call time: declaring an
-        `rc_policy` without an `rc_param`, or pointing
-        `rc_param` at a name that isn't a declared `out` parameter.
+        `rc_policy` without an `rc_param`, or pointing `rc_param` at a name that
+        isn't a declared `out` parameter.
         """
         if self.rc_policy is None:
             return
@@ -112,21 +111,21 @@ class Routine:
     def call(self, func: Any, /, **kwargs: Any) -> Any:
         """Dispatch a call to `func` using this routine's declarative shape.
 
-        Resolves any dynamic-type factories against `kwargs`, auto-allocates
-        OUT buffers, assigns `argtypes`/`restype` on `func`, invokes it
-        with positional args in declaration order, runs the configured return
-        code policy (if any), and returns the OUT values.
+        Resolves any dynamic-type factories against `kwargs`, auto-allocates OUT
+        buffers, assigns `argtypes`/`restype` on `func`, invokes it with
+        positional args in declaration order, runs the configured return code
+        policy (if any), and returns the OUT values.
 
         Args:
-            func: Resolved foreign function (ctypes `_FuncPointer`) or a
-                Python callable compatible with the routine's call shape (used
-                by tests).
+            func: Resolved foreign function (ctypes `_FuncPointer`) or a Python
+                callable compatible with the routine's call shape (used by
+                tests).
             **kwargs: One entry per non-OUT parameter.
 
         Returns:
-            `None` if the routine has no non-rc OUT params, the unwrapped
-            scalar value if it has exactly one, or a `dict[name, value]` if
-            it has several.
+            `None` if the routine has no non-rc OUT params, the unwrapped scalar
+            value if it has exactly one, or a `dict[name, value]` if it has
+            several.
 
         Raises:
             TypeError: If required kwargs are missing, unknown kwargs are
@@ -193,9 +192,9 @@ class Routine:
     def _label(self) -> str:
         """Return a short identifier for error messages.
 
-        Prefers the registry-populated `name` when present; falls back
-        to a generic `Routine(...)` tag for routines constructed outside
-        the registry (e.g. in unit tests).
+        Prefers the registry-populated `name` when present; falls back to a
+        generic `Routine(...)` tag for routines constructed outside the registry
+        (e.g. in unit tests).
         """
         return self.name or "Routine"
 
@@ -203,10 +202,9 @@ class Routine:
 def _resolve_ctype(ctype: ParamType, scope: Scope) -> type:
     """Return a concrete ctypes type, invoking `ctype` if it's a factory.
 
-    Static types (classes like `ct.c_int` or an `ndpointer` subclass
-    produced by `numpy.ctypeslib.ndpointer`) are returned unchanged.
-    Callables that are not types are invoked with `scope` and expected to
-    return a ctypes type.
+    Static types (classes like `ct.c_int` or an `ndpointer` subclass produced by
+    `numpy.ctypeslib.ndpointer`) are returned unchanged. Callables that are not
+    types are invoked with `scope` and expected to return a ctypes type.
     """
     if isinstance(ctype, type):
         return ctype
@@ -254,13 +252,12 @@ def rc_policy(exc: type[Exception], msg: str) -> Callable[[int], None]:
 def attr_accessor_policy(rc: int) -> None:
     """Raise if `rc` is not `FvsAttrReturnCode.OK`.
 
-    Consumed by the `rc_policy` field on `Routine` entries whose
-    return codes follow the canonical attr-accessor convention shared by
-    `fvsSpeciesAttr`, `fvsTreeAttr`, and similar routines.
-    `FvsAttrReturnCode.NAME_NOT_FOUND` surfaces as `NameError`
-    (a caller-supplied attribute name that FVS does not recognize); the
-    remaining documented codes surface as `RuntimeError` with the
-    enum's canned message. Codes outside the known set also become a
+    Consumed by the `rc_policy` field on `Routine` entries whose return codes
+    follow the canonical attr-accessor convention shared by `fvsSpeciesAttr`,
+    `fvsTreeAttr`, and similar routines. `FvsAttrReturnCode.NAME_NOT_FOUND`
+    surfaces as `NameError` (a caller-supplied attribute name that FVS does not
+    recognize); the remaining documented codes surface as `RuntimeError` with
+    the enum's canned message. Codes outside the known set also become a
     `RuntimeError`, surfaced via the generic "unrecognized" message.
     """
     if rc == FvsAttrReturnCode.OK:
