@@ -17,7 +17,6 @@ import pytest
 from fvs2py._mixins.control import ControlMixin
 from fvs2py._mixins.events import EventMixin
 from fvs2py._mixins.simulation import SimulationMixin
-from fvs2py._mixins.species import SpeciesMixin
 from fvs2py._mixins.stand import StandMixin
 from fvs2py._mixins.svs import SVSMixin
 from fvs2py._mixins.trees import TreesMixin
@@ -26,7 +25,6 @@ from fvs2py.constants import (
     EVMON_ATTRS,
     FFE_FALLYRS_ATTRS,
     MGMT_ID_COLUMN_NAME,
-    SPECIES_ATTRS,
     STAND_CN_COLUMN_NAME,
     STAND_ID_COLUMN_NAME,
     STR_MAXCYCLES,
@@ -43,10 +41,8 @@ from fvs2py.constants import (
     STR_NSVSOBJS,
     STR_NTREES,
     SVS_OBJ_ATTRS,
-    TREE_ATTRS,
 )
 from fvs2py.enums import (
-    FvsAttributeAccessor,
     FvsBaseActivity,
     FvsItrnCode,
     FvsRestartCode,
@@ -377,37 +373,6 @@ def test_control_mixin_stop_point_code_setter_validates():
 
 
 # ---------------------------------------------------------------------------
-# SpeciesMixin
-# ---------------------------------------------------------------------------
-
-
-class _SpeciesStub(SpeciesMixin):
-    def __init__(self):
-        self._species_attrs = dict.fromkeys(SPECIES_ATTRS)
-
-    def _invoke(self, name, /, **kwargs):
-        return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
-
-
-def test_species_mixin_species_attr_unknown_name_raises_nameerror():
-    stub = _SpeciesStub()
-    with pytest.raises(NameError, match="Invalid variable requested"):
-        stub._species_attr("not-a-real-attr", FvsAttributeAccessor.GET)
-
-
-def test_species_mixin_species_attr_set_without_arr_raises_typeerror():
-    stub = _SpeciesStub()
-    # `_species_attr` reads `self.dims` before the arr-None guard; since
-    # `dims` is not on SpeciesMixin, an instance attribute shadows fine.
-    stub.dims = {STR_MAXSPECIES: 1}
-    attr = next(iter(SPECIES_ATTRS))
-    with pytest.raises(
-        TypeError, match="Must provide `arr` if `action` is 'set'"
-    ):
-        stub._species_attr(attr, FvsAttributeAccessor.SET, None)
-
-
-# ---------------------------------------------------------------------------
 # SVSMixin (fvsSVSDimSizes, fvsSVSObjData, fvsFFEAttrs)
 # ---------------------------------------------------------------------------
 
@@ -430,8 +395,6 @@ class _SVSStub(SVSMixin):
             STR_MXDEADOBJS: 100,
             STR_MXCWDOBJS: 100,
         }
-        self._ffe_attrs = dict.fromkeys(FFE_FALLYRS_ATTRS)
-        self._svs_obj_attrs = dict.fromkeys(SVS_OBJ_ATTRS)
         self.dims = {STR_MAXSPECIES: maxspecies}
         self._known_ffe: dict[str, np.ndarray] = known_ffe or {}
         self._known_svs: dict[str, np.ndarray] = {}
@@ -447,9 +410,11 @@ class _SVSStub(SVSMixin):
             mxd.value = sc[STR_MXDEADOBJS]
             mxc.value = sc[STR_MXCWDOBJS]
 
-        def fvs_ffe_attrs(attr_name, nch, action, maxspecies_ptr, arr, rtncode):
-            name = bytes(ct.string_at(attr_name, nch.value)).decode()
-            act = bytes(ct.string_at(action, 3)).decode()
+        def fvs_ffe_attrs(
+            attr_name, _nch, action, maxspecies_ptr, arr, rtncode
+        ):
+            name = attr_name.decode()
+            act = action.decode()
             n = maxspecies_ptr.value
             self.ffe_calls.append({
                 "name": name,
@@ -472,9 +437,9 @@ class _SVSStub(SVSMixin):
                 self._known_ffe[name] = np.array(arr, dtype=np.float64)
             rtncode.value = 0
 
-        def fvs_svs_obj_data(attr_name, nch, action, nobjs, arr, rtncode):
-            name = bytes(ct.string_at(attr_name, nch.value)).decode()
-            act = bytes(ct.string_at(action, 3)).decode()
+        def fvs_svs_obj_data(attr_name, _nch, action, nobjs, arr, rtncode):
+            name = attr_name.decode()
+            act = action.decode()
             n = nobjs.value
             self.svs_obj_calls.append({"name": name, "action": act, "nobjs": n})
             if name not in SVS_OBJ_ATTRS:
@@ -506,32 +471,16 @@ def test_svs_mixin_svs_dim_sizes_returns_six_ints():
     assert d[STR_MXSVSOBJS] == 100
 
 
-def test_svs_mixin_ffe_attr_unknown_name_raises_nameerror():
-    stub = _SVSStub()
-    with pytest.raises(NameError, match="Invalid variable requested"):
-        stub._ffe_attr("not-a-real-attr", FvsAttributeAccessor.GET)
-
-
 def test_svs_mixin_svs_obj_attr_unknown_name_raises_nameerror():
     stub = _SVSStub()
-    with pytest.raises(NameError, match="Invalid variable requested"):
-        stub._svs_obj_attr("nope", FvsAttributeAccessor.GET)
+    with pytest.raises(NameError, match="unrecognized SVS object attribute"):
+        stub.get_svs_obj_attr("nope")
 
 
-def test_svs_mixin_ffe_attr_set_without_arr_raises_typeerror():
+def test_svs_mixin_svs_obj_attr_set_with_wrong_count_raises_valueerror():
     stub = _SVSStub()
-    attr = next(iter(FFE_FALLYRS_ATTRS))
-    with pytest.raises(
-        TypeError, match="Must provide `arr` if `action` is 'set'"
-    ):
-        stub._ffe_attr(attr, FvsAttributeAccessor.SET, None)
-
-
-def test_svs_mixin_ffe_attr_set_with_wrong_shape_raises_valueerror():
-    stub = _SVSStub(maxspecies=3)
-    attr = next(iter(FFE_FALLYRS_ATTRS))
-    with pytest.raises(ValueError, match=r"same shape as `maxspecies` \(3,\)"):
-        stub._ffe_attr(attr, FvsAttributeAccessor.SET, np.zeros(shape=(5,)))
+    with pytest.raises(ValueError, match=r"shape \(2,\)"):
+        stub.set_svs_obj_attr("xloc", np.zeros(shape=(5,)))
 
 
 def test_svs_mixin_get_ffe_attr_round_trips_through_stub():
@@ -626,8 +575,6 @@ class _TreesStub(TreesMixin):
         nplots: int = 1,
         species_indices: tuple[int, ...] = (1,),
     ):
-        self._tree_attrs = TREE_ATTRS
-        self._trees = dict.fromkeys(TREE_ATTRS)
         self.dims = {
             STR_NTREES: ntrees,
             STR_MAXTREES: maxtrees,
@@ -639,20 +586,10 @@ class _TreesStub(TreesMixin):
         return FVS_ROUTINES[name].call(getattr(self, f"_{name}"), **kwargs)
 
 
-def test_trees_mixin_tree_attr_set_without_arr_raises_typeerror():
+def test_trees_mixin_set_tree_attr_with_wrong_shape_raises_valueerror():
     stub = _TreesStub(ntrees=3)
-    attr = next(iter(TREE_ATTRS))
-    with pytest.raises(
-        TypeError, match="Must provide `arr` if `action` is 'set'"
-    ):
-        stub._tree_attr(attr, FvsAttributeAccessor.SET, None)
-
-
-def test_trees_mixin_tree_attr_set_with_wrong_shape_raises_valueerror():
-    stub = _TreesStub(ntrees=3)
-    attr = next(iter(TREE_ATTRS))
-    with pytest.raises(ValueError, match=r"same shape as `ntrees` \(3,\)"):
-        stub._tree_attr(attr, FvsAttributeAccessor.SET, np.zeros(shape=(5,)))
+    with pytest.raises(ValueError, match=r"shape \(3,\)"):
+        stub.set_tree_attr("dbh", np.zeros(shape=(5,)))
 
 
 def test_trees_mixin_trees_property_warns_and_returns_none_when_empty():
@@ -739,9 +676,9 @@ class _EventStub(EventMixin):
         self.activity_calls: list[dict] = []
         self._add_activity_rc = add_activity_rc
 
-        def fvs_evmon_attr(attr_name, nch, action, arr, rtncode):
-            name = bytes(ct.string_at(attr_name, nch.value)).decode()
-            act = bytes(ct.string_at(action, 3)).decode()
+        def fvs_evmon_attr(attr_name, _nch, action, arr, rtncode):
+            name = attr_name.decode()
+            act = action.decode()
             self.evmon_calls.append({"name": name, "action": act})
             if act == "get":
                 if name in self._known_values:
@@ -772,25 +709,19 @@ class _EventStub(EventMixin):
 def test_event_mixin_evmon_attr_without_keyfile_raises_keyerror():
     stub = _EventStub(keyfile=None)
     with pytest.raises(KeyError, match="No keyfile loaded yet."):
-        stub._evmon_attr("year", FvsAttributeAccessor.GET)
+        stub.get_evmon_attr("year")
 
 
 def test_event_mixin_evmon_attr_without_stop_point_raises_runtimeerror():
     stub = _EventStub(stop_point_code=None)
     with pytest.raises(RuntimeError, match="Simulation has not yet started"):
-        stub._evmon_attr("year", FvsAttributeAccessor.GET)
+        stub.get_evmon_attr("year")
 
 
 def test_event_mixin_evmon_attr_with_ncycles_zero_returns_none_without_call():
     stub = _EventStub(ncycles=0)
-    assert stub._evmon_attr("year", FvsAttributeAccessor.GET) is None
+    assert stub.get_evmon_attr("year") is None
     assert stub.evmon_calls == []
-
-
-def test_event_mixin_evmon_attr_set_without_val_raises_typeerror():
-    stub = _EventStub()
-    with pytest.raises(TypeError, match="Must provide `val`"):
-        stub._evmon_attr("year", FvsAttributeAccessor.SET, None)
 
 
 def test_event_mixin_get_evmon_attr_returns_float_for_known_name():
@@ -804,11 +735,11 @@ def test_event_mixin_get_evmon_attr_unknown_name_raises_nameerror():
         stub.get_evmon_attr("bogus")
 
 
-def test_event_mixin_set_evmon_attr_registers_new_name_in_cache():
+def test_event_mixin_set_evmon_attr_adds_new_name_to_evmon_attrs():
     stub = _EventStub()
-    assert "my_compute_var" not in stub._evmon_attrs
+    assert "my_compute_var" not in stub.evmon_attrs
     stub.set_evmon_attr("my_compute_var", 3.14)
-    assert "my_compute_var" in stub._evmon_attrs
+    assert stub.evmon_attrs["my_compute_var"] == pytest.approx(3.14)
 
 
 def test_event_mixin_evmon_attrs_property_tolerates_name_not_found():

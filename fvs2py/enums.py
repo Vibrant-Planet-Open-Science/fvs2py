@@ -41,13 +41,6 @@ class FvsVariant(StrEnum):
     WESTERN_SIERRAS = "WS"  # Western Sierra Nevada
 
 
-class FvsAttributeAccessor(StrEnum):
-    """How an FVS attribute is to be accessed."""
-
-    GET = "get"
-    SET = "set"
-
-
 class FvsItrnCode(IntEnum):
     """Return-code values reported by `fvsGetRtnCode` / `FVS.itrncd`."""
 

@@ -353,6 +353,17 @@ def test_species_attr_get_set(fvs, keyfile):
         assert np.isclose(after, (before + 1.0)).all()
 
 
+def test_get_species_attr_returns_independent_arrays(fvs, keyfile):
+    fvs.load_keyfile(keyfile)
+    fvs.run(-1)
+
+    first = fvs.get_species_attr("spsdi")
+    expected = first.copy()
+    second = fvs.get_species_attr("spsdi")
+    second += 1.0
+    assert np.array_equal(first, expected)
+
+
 def test_reload_fvs(fvs, keyfile):
     fvs.load_keyfile(keyfile)
     fvs.run()
