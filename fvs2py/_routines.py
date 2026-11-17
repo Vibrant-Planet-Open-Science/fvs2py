@@ -71,8 +71,7 @@ class Param:
         name: Kwarg name used by `Routine.call`.
         ctype: Either a ctypes type (static) or a callable that receives the
             call-site kwargs as scope and returns a concrete ctypes type.
-            Factories are typically closures produced by `ndptr_f64` or
-            `ndptr_intc`.
+            Factories are typically closures produced by `ndptr_f64`.
         intent: Direction flag; see `Intent`.
     """
 
@@ -235,50 +234,18 @@ def _resolve_ctype(ctype: ParamType, scope: Scope) -> type:
     return ctype(scope)
 
 
-def _unwrap(v: Any) -> int:
-    """Return the integer value of `v`.
-
-    Accepts either a plain int or a ctypes scalar with a `.value`
-    attribute. Mixin methods sometimes have a dimension as a bare Python int
-    (`dims[STR_NTREES]`) and sometimes as a ctypes scalar
-    (`self._ntrees`). `ndptr_f64` and `ndptr_intc` factories
-    call through this helper so either form is accepted at the call site.
-    """
-    return v.value if hasattr(v, "value") else int(v)
-
-
-def ndptr_f64(
-    *dim_keys: str, flags: str = STR_C_CONTIGUOUS
-) -> Callable[[Scope], type]:
+def ndptr_f64(*dim_keys: str) -> Callable[[Scope], type]:
     """Build a factory that resolves a contiguous `float64` ndpointer.
 
     The returned factory reads each `dim_keys` entry from the call scope
-    (kwargs), unwraps ctypes scalars via `_unwrap`, and returns an
-    `np.ctypeslib.ndpointer` subclass with the resolved shape.
+    (kwargs, always `ct.c_int` since dims are `POINTER(c_int)` params) and
+    returns an `np.ctypeslib.ndpointer` subclass with the resolved shape.
     """
 
     def factory(scope: Scope) -> type:
-        shape = tuple(_unwrap(scope[k]) for k in dim_keys)
+        shape = tuple(scope[k].value for k in dim_keys)
         return np.ctypeslib.ndpointer(  # type: ignore[return-value]
-            np.float64, shape=shape, flags=flags
-        )
-
-    return factory
-
-
-def ndptr_intc(
-    *dim_keys: str, flags: str = STR_C_CONTIGUOUS
-) -> Callable[[Scope], type]:
-    """Build a factory that resolves a contiguous `intc` ndpointer.
-
-    See `ndptr_f64` for the shape-resolution semantics; this variant
-    targets C-int arrays, as used by `fvsSummary`.
-    """
-
-    def factory(scope: Scope) -> type:
-        shape = tuple(_unwrap(scope[k]) for k in dim_keys)
-        return np.ctypeslib.ndpointer(  # type: ignore[return-value]
-            np.intc, shape=shape, flags=flags
+            np.float64, shape=shape, flags=STR_C_CONTIGUOUS
         )
 
     return factory
