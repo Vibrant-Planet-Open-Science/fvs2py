@@ -273,6 +273,14 @@ def test_stand_ids_without_load(fvs, keyfile):
     assert fvs.stand_ids == SO_KEYFILE_STAND_IDS
 
 
+def test_setting_stop_points_does_not_start_the_simulation(fvs, keyfile):
+    fvs.load_keyfile(keyfile)
+    fvs.set_stop_point_codes(0, 0)
+
+    with pytest.raises(RuntimeError, match="Simulation has not started yet."):
+        fvs.stand_ids
+
+
 def test_stand_ids_rename(fvs, keyfile):
     keyfile_content = keyfile.read_text()
 

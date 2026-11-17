@@ -125,7 +125,10 @@ class FvsCore:
     def _require_started(self) -> None:
         """Raise `RuntimeError` unless a keyfile is loaded and `run` called."""
         self._require_keyfile()
-        if self._stop_point_code is None:
+        if (
+            self._invoke("fvsGetRtnCode") == FvsItrnCode.GOOD_RUNNING_STATE
+            and self._invoke("fvsGetRestartCode") == FvsRestartCode.INITIALIZED
+        ):
             msg = "Simulation has not started yet. Call `run` first."
             raise RuntimeError(msg)
 
