@@ -16,7 +16,6 @@ from fvs2py._mixins import (
     TreesMixin,
 )
 from fvs2py.constants import EVMON_ATTRS
-from fvs2py.enums import FvsSimulationState
 
 
 class FVS(
@@ -31,11 +30,10 @@ class FVS(
 ):
     """Main class for interacting with FVS at runtime.
 
-    Public behavior is contributed by the seven mixins
-    (`EventMixin`, `SVSMixin`, `TreesMixin`,
-    `SpeciesMixin`, `StandMixin`, `SimulationMixin`,
-    `ControlMixin`); this class just initializes the Python-side
-    buffers they rely on and wires the library-reload hook.
+    Public behavior is contributed by the seven mixins (`EventMixin`,
+    `SVSMixin`, `TreesMixin`, `SpeciesMixin`, `StandMixin`, `SimulationMixin`,
+    `ControlMixin`); this class just initializes the Python-side buffers they
+    rely on and wires the library-reload hook.
     """
 
     def __init__(self, lib_path: str | os.PathLike) -> None:
@@ -50,8 +48,8 @@ class FVS(
     def _initialize_attributes(self) -> None:
         """Reset all Python-side buffers and state tracked alongside FVS.
 
-        Called both at construction and after `_reload_fvs` so the
-        mixins can rely on a known set of pre-initialized attributes.
+        Called both at construction and after `_reload_fvs` so the mixins can
+        rely on a known set of pre-initialized attributes.
         """
         self.keyfile_path = None
         self.keyfile = None
@@ -60,7 +58,6 @@ class FVS(
         self._mgmt_id = ct.create_string_buffer(4)
         self._stand_cn = ct.create_string_buffer(40)
         self._stand_id = ct.create_string_buffer(26)
-        self._state = FvsSimulationState.IDLE
         self._stop_point_code = None
         self._stop_point_year = None
 

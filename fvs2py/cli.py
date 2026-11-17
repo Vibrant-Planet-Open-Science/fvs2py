@@ -5,8 +5,9 @@ These two commands do the same thing:
     FVSpn --keywordfile=name.key
     fvs --lib=/usr/local/lib/FVSpn.so --keywordfile=name.key
 
-Every argument other than `--lib` is passed straight to FVS. The exit status matches the FVS executables: 0 on success, otherwise
-10 times the FVS error code.
+Every argument other than `--lib` is passed straight to FVS. The exit status
+matches the FVS executables: 0 on success, otherwise 10 times the FVS error
+code.
 
 Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 """
@@ -14,7 +15,6 @@ Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 from __future__ import annotations
 
 import argparse
-import ctypes as ct
 import faulthandler
 import os
 import sys
@@ -27,8 +27,8 @@ def main(argv: list[str] | None = None) -> int:
     """Run FVS with CLI semantics and return the process exit status.
 
     Args:
-        argv: Command-line arguments, excluding the program name. Defaults
-            to `sys.argv[1:]`.
+        argv: Command-line arguments, excluding the program name. Defaults to
+            `sys.argv[1:]`.
 
     Returns:
         `0` on success, otherwise `10 * fvsGetICCode` like the FVS CLI.
@@ -49,22 +49,16 @@ def main(argv: list[str] | None = None) -> int:
     if not os.path.isfile(args.lib):
         parser.error(f"--lib {args.lib!r} does not exist")
 
-    # Python traceback on SIGSEGV/SIGFPE/SIGABRT; the signal is re-raised so
-    # the parent still sees a negative return code.
+    # Python traceback on SIGSEGV/SIGFPE/SIGABRT; the signal is re-raised so the
+    # parent still sees a negative return code.
     faulthandler.enable()
-    # Must be set before libgfortran initializes (on library load), or
-    # output buffered just before a crash is lost.
+    # Must be set before libgfortran initializes (on library load), or output
+    # buffered just before a crash is lost.
     os.environ.setdefault("GFORTRAN_UNBUFFERED_PRECONNECTED", "y")
 
     fvs = FVS(args.lib)
 
-    cmdline = " ".join(fvs_args).encode()
-    fvs._invoke(
-        "fvsSetCmdLine",
-        cmdline=cmdline,
-        nch=ct.c_int(len(cmdline)),
-        itrncd=fvs._itrncd,
-    )
+    fvs._set_cmdline(" ".join(fvs_args))
     while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
         fvs._invoke("fvs", itrncd=fvs._itrncd)
 

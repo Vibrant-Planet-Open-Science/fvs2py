@@ -21,18 +21,17 @@ from fvs2py.constants import (
 class StandMixin:
     """Expose stand-level FVS outputs: dimensions, identifiers, summary table.
 
-    Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch and the Python-side buffers `_stand_id`, `_stand_cn`,
-    `_mgmt_id` (initialized by `FVS._initialize_attributes`). `keyfile`
-    and `stop_point_code` come from `ControlMixin`.
+    Assumes the composed class provides `FvsCore._invoke` for registry dispatch
+    and the Python-side buffers `_stand_id`, `_stand_cn`, `_mgmt_id`
+    (initialized by `FVS._initialize_attributes`), and `_require_keyfile` from
+    `ControlMixin`.
     """
 
     _invoke: Callable[..., Any]
     _stand_id: ct.Array[ct.c_char]
     _stand_cn: ct.Array[ct.c_char]
     _mgmt_id: ct.Array[ct.c_char]
-    keyfile: str | None
-    stop_point_code: int | None
+    _require_keyfile: Callable[..., None]
 
     @property
     def dims(self) -> dict:
@@ -44,16 +43,10 @@ class StandMixin:
         """Return stand identification codes.
 
         Raises:
-            AttributeError: If no keyfile has been loaded.
-            RuntimeError: If inventory data has not yet been loaded (i.e.
-                `run` has not been called).
+            RuntimeError: If no keyfile has been loaded or `run` has not been
+                called.
         """
-        if self.keyfile is None:
-            msg = "Keyfile not loaded yet."
-            raise AttributeError(msg)
-        if self.stop_point_code is None:
-            msg = "No inventory data loaded yet. Call `run` method."
-            raise RuntimeError(msg)
+        self._require_keyfile(started=True)
 
         self._invoke(
             "fvsStandID",
@@ -75,8 +68,8 @@ class StandMixin:
     def summary(self) -> pd.DataFrame | None:
         """Return a dataframe with FVS Summary Statistics for all initiated cycles.
 
-        The returned dataframe omits cycles that have not yet been initiated, which are
-        identifiable where all values in that row are zero.
+        The returned dataframe omits cycles that have not yet been initiated,
+        which are identifiable where all values in that row are zero.
         """
         dims = self.dims
         if dims[STR_NCYCLES] == 0:

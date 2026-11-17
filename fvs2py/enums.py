@@ -1,9 +1,9 @@
 """Symbolic names for FVS integer status codes and string accessors.
 
-All status-code enums are `IntEnum` subclasses, so their members compare
-equal to the corresponding raw integers returned/accepted by FVS. This keeps
-call-site ergonomics unchanged (`fvs.itrncd == FvsItrnCode.NOT_STARTED` works
-alongside `fvs.itrncd == -1`) while giving callers readable constants.
+All status-code enums are `IntEnum` subclasses, so their members compare equal
+to the corresponding raw integers returned/accepted by FVS. This keeps call-site
+ergonomics unchanged (`fvs.itrncd == FvsItrnCode.NOT_STARTED` works alongside
+`fvs.itrncd == -1`) while giving callers readable constants.
 """
 
 from __future__ import annotations
@@ -97,12 +97,12 @@ class FvsStopPointCode(IntEnum):
 class FvsAttrReturnCode(IntEnum):
     """Return-code values reported by attribute-accessor FVS routines.
 
-    Produced by `fvsSpeciesAttr`, `fvsTreeAttr`, and sibling routines with
-    the same convention in the trailing `rtncode` parameter. Each member
-    carries a `message` attribute describing the condition, suitable for
-    use in an error message. Codes 2 and 3 are only reported by
-    `fvsTreeAttr`; they're documented on the shared enum so a single
-    policy can cover every attr accessor.
+    Produced by `fvsSpeciesAttr`, `fvsTreeAttr`, and sibling routines with the
+    same convention in the trailing `rtncode` parameter. Each member carries a
+    `message` attribute describing the condition, suitable for use in an error
+    message. Codes 2 and 3 are only reported by `fvsTreeAttr`; they're
+    documented on the shared enum so a single policy can cover every attr
+    accessor.
     """
 
     message: str
@@ -206,9 +206,9 @@ class FvsEstablishmentActivity(IntEnum):
     STOCKADJ = 440
     HTADJ = 442
     SPROUT = 450
-    # NATURAL (490) is documented in some FVS variant guides but is
-    # omitted from rFVS's activity table and from this enum until we
-    # have evidence it is live in the shared library we target.
+    # NATURAL (490) is documented in some FVS variant guides but is omitted from
+    # rFVS's activity table and from this enum until we have evidence it is live
+    # in the shared library we target.
     BURNPREP = 491
     MECHPREP = 493
 
@@ -286,25 +286,8 @@ FvsActivity = (
 )
 """Union of every per-extension FVS activity enum.
 
-Any `IntEnum` member from the extension-scoped activity enums is a
-valid `FvsActivity`. Callers pass a member from the appropriate
-extension enum (`FvsBaseActivity.SALVAGE` vs. `FvsFireAndFuelsActivity.SALVAGE`);
-`int(activity)` unwraps it to the underlying FVS code for the library
-call.
+Any `IntEnum` member from the extension-scoped activity enums is a valid
+`FvsActivity`. Callers pass a member from the appropriate extension enum
+(`FvsBaseActivity.SALVAGE` vs. `FvsFireAndFuelsActivity.SALVAGE`);
+`int(activity)` unwraps it to the underlying FVS code for the library call.
 """
-
-
-class FvsSimulationState(StrEnum):
-    """Python-side state of the FVS simulation lifecycle.
-
-    Tracked on `FVS._state` so that `FVS.run` can guard against
-    re-entrant invocation and so callers (or future batch helpers) can reason
-    about whether a simulation is idle, in-flight, finished, or has failed.
-    These values are opaque identifiers; they do not correspond to any FVS
-    return code.
-    """
-
-    IDLE = "idle"
-    RUNNING = "running"
-    COMPLETE = "complete"
-    ERROR = "error"

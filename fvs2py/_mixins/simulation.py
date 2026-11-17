@@ -7,25 +7,21 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from fvs2py.enums import FvsItrnCode, FvsRestartCode, FvsSimulationState
+from fvs2py.enums import FvsItrnCode, FvsRestartCode
 
 
 class SimulationMixin:
     """Expose FVS simulation status codes and the top-level `run` loop.
 
-    Assumes the composed class provides `fvs2py._core.FvsCore._invoke`
-    plus the Python-side buffers `_itrncd` and `_state`, the `keyfile`
-    attribute, and the `set_stop_point_codes` helper contributed by
+    Assumes the composed class provides `fvs2py._core.FvsCore._invoke` plus the
+    `_itrncd` buffer, and `set_stop_point_codes` and `_require_keyfile` from
     `ControlMixin`.
     """
 
     _invoke: Callable[..., Any]
     _itrncd: ct.c_int
-    _state: FvsSimulationState
-    keyfile: str | None
-    stop_point_code: int | None
-    stop_point_year: int | None
     set_stop_point_codes: Callable[..., None]
+    _require_keyfile: Callable[..., None]
 
     @property
     def exit_code(self) -> int:
@@ -69,22 +65,6 @@ class SimulationMixin:
         """
         return self._invoke("fvsGetRestartCode")
 
-    def _run_cycles(self) -> None:
-        """Advance FVS until the current stand pauses or reaches stand-done.
-
-        Shared inner loop used by both `run` and `run_batch`: call
-        `fvs` while FVS reports a good running state, breaking out the
-        moment `restart_code` leaves `INITIALIZED` (either a stop-point
-        pause or the `DONE_RUNNING_STAND` marker).
-        """
-        while self.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
-            logging.debug("itrncd in GOOD_RUNNING_STATE.")
-            self._invoke("fvs", itrncd=self._itrncd)
-            logging.debug(f"Ran _fvs routine, itrncd is {self.itrncd}")
-            if self.restart_code != FvsRestartCode.INITIALIZED:
-                logging.debug("restart code non-zero, halting run loop.")
-                break
-
     def run(
         self,
         stop_point_code: int = 0,
@@ -93,16 +73,15 @@ class SimulationMixin:
         """Run FVS until the stand completes or a stop point is reached.
 
         The call stays eager: when the stand finishes (FVS reports
-        `restart_code == FvsRestartCode.DONE_RUNNING_STAND`), `run`
-        issues one additional `_fvs` call to flush the main output file
-        before returning, so callers do not need to invoke `run` a
-        second time just to finalize output. When `stop_point_code` pauses
-        the simulation mid-cycle, no flush is performed and the next call to
-        `run` resumes from the stop.
+        `restart_code == FvsRestartCode.DONE_RUNNING_STAND`), `run` issues one
+        additional `_fvs` call to flush the main output file before returning,
+        so callers do not need to invoke `run` a second time just to finalize
+        output. When `stop_point_code` pauses the simulation mid-cycle, no flush
+        is performed and the next call to `run` resumes from the stop.
 
-        Multi-stand keyfiles are out of scope here; use `run_batch`
-        (and load the keyfile with `check_single_stand=False`) when the
-        keyfile defines more than one stand.
+        Multi-stand keyfiles are out of scope here; use `run_batch` (and load
+        the keyfile with `check_single_stand=False`) when the keyfile defines
+        more than one stand.
 
         Args:
             stop_point_code (optional, int): when FVS should stop during a cycle:
@@ -123,32 +102,12 @@ class SimulationMixin:
                YYYY : A specific year during the simulation period
 
         Raises:
-            AttributeError: If no keyfile has been loaded yet.
-            RuntimeError: If another `run` call is already in progress
-                on this instance.
+            RuntimeError: If no keyfile has been loaded yet.
         """
-        if self.keyfile is None:
-            msg = "No keyfile loaded yet."
-            raise AttributeError(msg)
-        if self._state == FvsSimulationState.RUNNING:
-            msg = "Simulation already in progress."
-            raise RuntimeError(msg)
-        logging.debug("Found keyfile.")
-        self.set_stop_point_codes(stop_point_code, stop_point_year)
-        logging.debug(
-            f"Set stop point codes, {stop_point_code}:{self.stop_point_code}, "
-            f"{stop_point_year}:{self.stop_point_year}"
-        )
-        self._state = FvsSimulationState.RUNNING
-        try:
-            self._run_cycles()
-            if self.restart_code == FvsRestartCode.DONE_RUNNING_STAND:
-                logging.debug("Stand complete; flushing output.")
-                self._invoke("fvs", itrncd=self._itrncd)
-            self._state = FvsSimulationState.COMPLETE
-        except Exception:
-            self._state = FvsSimulationState.ERROR
-            raise
+        self.run_batch(stop_point_code, stop_point_year)
+        if self.restart_code == FvsRestartCode.DONE_RUNNING_STAND:
+            logging.debug("Stand complete; flushing output.")
+            self._invoke("fvs", itrncd=self._itrncd)
 
     def run_batch(
         self,
@@ -157,12 +116,12 @@ class SimulationMixin:
     ) -> None:
         """Advance FVS one stand's worth of cycles without auto-flushing.
 
-        Unlike `run`, this method does not follow a `DONE_RUNNING_STAND`
-        restart code with a flush call. It simply returns once FVS either
-        pauses at a stop point or reports the stand-done marker, leaving
-        output finalization, stand-advance, and termination detection in
-        the caller's hands. This is the low-level building block for
-        driving multi-stand keyfiles, where the caller typically loops:
+        Unlike `run`, this method does not follow a `DONE_RUNNING_STAND` restart
+        code with a flush call. It simply returns once FVS either pauses at a
+        stop point or reports the stand-done marker, leaving output
+        finalization, stand-advance, and termination detection in the caller's
+        hands. This is the low-level building block for driving multi-stand
+        keyfiles, where the caller typically loops:
 
             fvs.load_keyfile(path, check_single_stand=False)
             while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
@@ -172,37 +131,27 @@ class SimulationMixin:
                 ...  # handle the failure
 
         The loop ends at `FINISHED_ALL_STANDS` or `ERROR`. Don't loop on
-        `itrncd != FINISHED_ALL_STANDS`: after an FVS error, `itrncd`
-        stays at `ERROR` and that loop never ends. Some errors (e.g. FVS
-        can't open an output file) set `itrncd` to `ERROR` but leave
-        `exit_code` at 0, so check both.
+        `itrncd != FINISHED_ALL_STANDS`: after an FVS error, `itrncd` stays at
+        `ERROR` and that loop never ends. Some errors (e.g. FVS can't open an
+        output file) set `itrncd` to `ERROR` but leave `exit_code` at 0, so
+        check both.
 
         Stop-point semantics are identical to `run`: pass non-zero
-        `stop_point_code` / `stop_point_year` to pause mid-cycle, then
-        call `run_batch` again to resume.
+        `stop_point_code` / `stop_point_year` to pause mid-cycle, then call
+        `run_batch` again to resume.
 
         Args:
             stop_point_code (optional, int): when FVS should stop during a
                 cycle. See `run` for the full list of values.
-            stop_point_year (optional, int): year(s) at which FVS should
-                stop. See `run` for the full list of values.
+            stop_point_year (optional, int): year(s) at which FVS should stop.
+                See `run` for the full list of values.
 
         Raises:
-            AttributeError: If no keyfile has been loaded yet.
-            RuntimeError: If another run is already in progress on this
-                instance.
+            RuntimeError: If no keyfile has been loaded yet.
         """
-        if self.keyfile is None:
-            msg = "No keyfile loaded yet."
-            raise AttributeError(msg)
-        if self._state == FvsSimulationState.RUNNING:
-            msg = "Simulation already in progress."
-            raise RuntimeError(msg)
+        self._require_keyfile()
         self.set_stop_point_codes(stop_point_code, stop_point_year)
-        self._state = FvsSimulationState.RUNNING
-        try:
-            self._run_cycles()
-            self._state = FvsSimulationState.COMPLETE
-        except Exception:
-            self._state = FvsSimulationState.ERROR
-            raise
+        while self.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
+            self._invoke("fvs", itrncd=self._itrncd)
+            if self.restart_code != FvsRestartCode.INITIALIZED:
+                break

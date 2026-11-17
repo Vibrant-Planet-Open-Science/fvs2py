@@ -17,11 +17,10 @@ from fvs2py.keyfile import validate_single_stand
 class ControlMixin:
     """Expose keyfile loading and stop-point configuration.
 
-    Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch, the `_itrncd` buffer, and the
-    `_stop_point_code`/`_stop_point_year` slots initialized by
-    `FVS._initialize_attributes`. `run` on `SimulationMixin`
-    is expected to call into `set_stop_point_codes`.
+    Assumes the composed class provides `FvsCore._invoke` for registry dispatch,
+    the `_itrncd` buffer, and the `_stop_point_code`/`_stop_point_year` slots
+    initialized by `FVS._initialize_attributes`. `run` on `SimulationMixin` is
+    expected to call into `set_stop_point_codes`.
     """
 
     _invoke: Callable[..., Any]
@@ -55,8 +54,8 @@ class ControlMixin:
                 calibration (argument stptyr is ignored).
 
         Assigning to this property delegates to `set_stop_point_codes`,
-        preserving the currently-configured `stop_point_year` (or `0` if
-        year has not been set).
+        preserving the currently-configured `stop_point_year` (or `0` if year
+        has not been set).
         """
         if self._stop_point_code is not None:
             return self._stop_point_code.value
@@ -80,8 +79,8 @@ class ControlMixin:
         YYYY : A specific year during the simulation period.
 
         Assigning to this property delegates to `set_stop_point_codes`,
-        preserving the currently-configured `stop_point_code` (or `0` if
-        code has not been set).
+        preserving the currently-configured `stop_point_code` (or `0` if code
+        has not been set).
         """
         if self._stop_point_year is not None:
             return self._stop_point_year.value
@@ -104,22 +103,21 @@ class ControlMixin:
     ) -> None:
         """Set the keywordfile as a command-line argument to FVS.
 
-        If `check_single_stand` is true (the default), the keyfile text is
-        first passed to `fvs2py.keyfile.validate_single_stand`; a keyfile
-        that describes zero or multiple stands raises `ValueError`
-        before FVS is invoked. Callers driving multi-stand runs via
-        `FVS.run_batch` must set `check_single_stand=False` to bypass
-        the guard.
+        If `check_single_stand` is true (the default), the keyfile text is first
+        passed to `fvs2py.keyfile.validate_single_stand`; a keyfile that
+        describes zero or multiple stands raises `ValueError` before FVS is
+        invoked. Callers driving multi-stand runs via `FVS.run_batch` must set
+        `check_single_stand=False` to bypass the guard.
 
         Args:
             keywordfile: Path to the FVS keyword file.
-            check_single_stand: When true (default), require the keyfile to define
-                exactly one stand (one each of `STDIDENT`, `PROCESS`,
-                and `STOP`).
+            check_single_stand: When true (default), require the keyfile to
+                define exactly one stand (one each of `STDIDENT`, `PROCESS`, and
+                `STOP`).
 
         Raises:
-            ValueError: If `check_single_stand` is true and the keyfile
-                fails `fvs2py.keyfile.validate_single_stand`.
+            ValueError: If `check_single_stand` is true and the keyfile fails
+                `fvs2py.keyfile.validate_single_stand`.
         """
         if self.itrncd != FvsItrnCode.NOT_STARTED:
             if self.itrncd != FvsItrnCode.FINISHED_ALL_STANDS:
@@ -148,16 +146,30 @@ class ControlMixin:
                 )
                 raise ValueError(msg) from exc
 
-        cmdline = f"--keywordfile={self.keyfile_path}"
-        nch = len(cmdline)
+        self._set_cmdline(f"--keywordfile={self.keyfile_path}")
+        logging.debug(f"Return code updated to {self.itrncd}")
 
+    def _set_cmdline(self, cmdline: str) -> None:
+        """Pass `cmdline` to FVS as if it were the executable's arguments."""
+        encoded = cmdline.encode()
         self._invoke(
             "fvsSetCmdLine",
-            cmdline=cmdline.encode(),
-            nch=ct.c_int(nch),
+            cmdline=encoded,
+            nch=ct.c_int(len(encoded)),
             itrncd=self._itrncd,
         )
-        logging.debug(f"Return code updated to {self.itrncd}")
+
+    def _require_keyfile(self, *, started: bool = False) -> None:
+        """Raise `RuntimeError` unless a keyfile is loaded.
+
+        With `started=True`, also require that `run` has been called.
+        """
+        if self.keyfile is None:
+            msg = "No keyfile loaded yet. Call `load_keyfile` first."
+            raise RuntimeError(msg)
+        if started and self.stop_point_code is None:
+            msg = "Simulation has not started yet. Call `run` first."
+            raise RuntimeError(msg)
 
     def set_stop_point_codes(
         self,
@@ -186,8 +198,8 @@ class ControlMixin:
                YYYY : A specific year during the simulation period
 
         Raises:
-            ValueError: If `stop_point_code` is outside the range `[-1, 7]`,
-                or if `stop_point_year` is provided without `stop_point_code`.
+            ValueError: If `stop_point_code` is outside the range `[-1, 7]`, or
+                if `stop_point_year` is provided without `stop_point_code`.
         """
         if stop_point_code is not None:
             try:
