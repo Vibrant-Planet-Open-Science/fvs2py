@@ -31,7 +31,13 @@ from fvs2py.constants import (
     STR_NSVSOBJS,
     STR_NTREES,
 )
-from fvs2py.enums import FvsBaseActivity, FvsItrnCode, FvsRestartCode
+from fvs2py.enums import (
+    FvsBaseActivity,
+    FvsExitCode,
+    FvsItrnCode,
+    FvsRestartCode,
+    FvsStopPointCode,
+)
 
 KEYFILE = "STDIDENT\n"
 
@@ -218,9 +224,18 @@ def test_summary_is_none_before_any_cycle(make_fvs):
 # ---------------------------------------------------------------------------
 
 
-def test_status_codes_read_fvs_output(make_fvs):
-    fvs, _ = make_fvs(itrncd=2, exit_code=3, restart_code=100)
-    assert (fvs.itrncd, fvs.exit_code, fvs.restart_code) == (2, 3, 100)
+def test_status_codes_are_enum_members(make_fvs):
+    fvs, _ = make_fvs(itrncd=2, exit_code=10, restart_code=7)
+    assert fvs.itrncd is FvsItrnCode.FINISHED_ALL_STANDS
+    assert fvs.exit_code is FvsExitCode.ESTABLISHMENT_OR_COVER_WARNING
+    assert fvs.restart_code is FvsRestartCode.AFTER_INPUT_BEFORE_IMPUTE
+
+
+@pytest.mark.parametrize("code", ["itrncd", "exit_code", "restart_code"])
+def test_unknown_status_code_raises(make_fvs, code):
+    fvs, _ = make_fvs(**{code: 99})
+    with pytest.raises(ValueError, match="99"):
+        getattr(fvs, code)
 
 
 @pytest.mark.parametrize("method", ["run", "run_batch"])
@@ -277,6 +292,7 @@ def test_set_stop_point_codes_stores_both(make_fvs):
     fvs, _ = make_fvs(started=False)
     fvs.set_stop_point_codes(3, 2025)
     assert (fvs.stop_point_code, fvs.stop_point_year) == (3, 2025)
+    assert fvs.stop_point_code is FvsStopPointCode.BEFORE_SECOND_EVMON
 
 
 @pytest.mark.parametrize("invalid", [-2, 8, 10, -5])

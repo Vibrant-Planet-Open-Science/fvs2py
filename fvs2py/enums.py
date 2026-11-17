@@ -58,6 +58,7 @@ class FvsExitCode(IntEnum):
     KEYWORD_ERROR = 2
     EXTENSION_OR_GROUP_ACTIVITIES_ERROR = 3
     SCRATCH_FILE_ERROR = 4
+    ESTABLISHMENT_OR_COVER_WARNING = 10
 
 
 class FvsRestartCode(IntEnum):
