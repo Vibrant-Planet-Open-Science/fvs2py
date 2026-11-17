@@ -13,9 +13,9 @@ from fvs2py.enums import FvsItrnCode, FvsRestartCode
 class SimulationMixin:
     """Expose FVS simulation status codes and the top-level `run` loop.
 
-    Assumes the composed class provides `fvs2py._core.FvsCore._invoke`
-    plus the `_itrncd` buffer, and `set_stop_point_codes` and
-    `_require_keyfile` from `ControlMixin`.
+    Assumes the composed class provides `fvs2py._core.FvsCore._invoke` plus the
+    `_itrncd` buffer, and `set_stop_point_codes` and `_require_keyfile` from
+    `ControlMixin`.
     """
 
     _invoke: Callable[..., Any]
@@ -73,16 +73,15 @@ class SimulationMixin:
         """Run FVS until the stand completes or a stop point is reached.
 
         The call stays eager: when the stand finishes (FVS reports
-        `restart_code == FvsRestartCode.DONE_RUNNING_STAND`), `run`
-        issues one additional `_fvs` call to flush the main output file
-        before returning, so callers do not need to invoke `run` a
-        second time just to finalize output. When `stop_point_code` pauses
-        the simulation mid-cycle, no flush is performed and the next call to
-        `run` resumes from the stop.
+        `restart_code == FvsRestartCode.DONE_RUNNING_STAND`), `run` issues one
+        additional `_fvs` call to flush the main output file before returning,
+        so callers do not need to invoke `run` a second time just to finalize
+        output. When `stop_point_code` pauses the simulation mid-cycle, no flush
+        is performed and the next call to `run` resumes from the stop.
 
-        Multi-stand keyfiles are out of scope here; use `run_batch`
-        (and load the keyfile with `check_single_stand=False`) when the
-        keyfile defines more than one stand.
+        Multi-stand keyfiles are out of scope here; use `run_batch` (and load
+        the keyfile with `check_single_stand=False`) when the keyfile defines
+        more than one stand.
 
         Args:
             stop_point_code (optional, int): when FVS should stop during a cycle:
@@ -117,12 +116,12 @@ class SimulationMixin:
     ) -> None:
         """Advance FVS one stand's worth of cycles without auto-flushing.
 
-        Unlike `run`, this method does not follow a `DONE_RUNNING_STAND`
-        restart code with a flush call. It simply returns once FVS either
-        pauses at a stop point or reports the stand-done marker, leaving
-        output finalization, stand-advance, and termination detection in
-        the caller's hands. This is the low-level building block for
-        driving multi-stand keyfiles, where the caller typically loops:
+        Unlike `run`, this method does not follow a `DONE_RUNNING_STAND` restart
+        code with a flush call. It simply returns once FVS either pauses at a
+        stop point or reports the stand-done marker, leaving output
+        finalization, stand-advance, and termination detection in the caller's
+        hands. This is the low-level building block for driving multi-stand
+        keyfiles, where the caller typically loops:
 
             fvs.load_keyfile(path, check_single_stand=False)
             while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
@@ -132,20 +131,20 @@ class SimulationMixin:
                 ...  # handle the failure
 
         The loop ends at `FINISHED_ALL_STANDS` or `ERROR`. Don't loop on
-        `itrncd != FINISHED_ALL_STANDS`: after an FVS error, `itrncd`
-        stays at `ERROR` and that loop never ends. Some errors (e.g. FVS
-        can't open an output file) set `itrncd` to `ERROR` but leave
-        `exit_code` at 0, so check both.
+        `itrncd != FINISHED_ALL_STANDS`: after an FVS error, `itrncd` stays at
+        `ERROR` and that loop never ends. Some errors (e.g. FVS can't open an
+        output file) set `itrncd` to `ERROR` but leave `exit_code` at 0, so
+        check both.
 
         Stop-point semantics are identical to `run`: pass non-zero
-        `stop_point_code` / `stop_point_year` to pause mid-cycle, then
-        call `run_batch` again to resume.
+        `stop_point_code` / `stop_point_year` to pause mid-cycle, then call
+        `run_batch` again to resume.
 
         Args:
             stop_point_code (optional, int): when FVS should stop during a
                 cycle. See `run` for the full list of values.
-            stop_point_year (optional, int): year(s) at which FVS should
-                stop. See `run` for the full list of values.
+            stop_point_year (optional, int): year(s) at which FVS should stop.
+                See `run` for the full list of values.
 
         Raises:
             RuntimeError: If no keyfile has been loaded yet.

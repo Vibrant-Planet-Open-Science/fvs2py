@@ -30,11 +30,10 @@ class FVS(
 ):
     """Main class for interacting with FVS at runtime.
 
-    Public behavior is contributed by the seven mixins
-    (`EventMixin`, `SVSMixin`, `TreesMixin`,
-    `SpeciesMixin`, `StandMixin`, `SimulationMixin`,
-    `ControlMixin`); this class just initializes the Python-side
-    buffers they rely on and wires the library-reload hook.
+    Public behavior is contributed by the seven mixins (`EventMixin`,
+    `SVSMixin`, `TreesMixin`, `SpeciesMixin`, `StandMixin`, `SimulationMixin`,
+    `ControlMixin`); this class just initializes the Python-side buffers they
+    rely on and wires the library-reload hook.
     """
 
     def __init__(self, lib_path: str | os.PathLike) -> None:
@@ -49,8 +48,8 @@ class FVS(
     def _initialize_attributes(self) -> None:
         """Reset all Python-side buffers and state tracked alongside FVS.
 
-        Called both at construction and after `_reload_fvs` so the
-        mixins can rely on a known set of pre-initialized attributes.
+        Called both at construction and after `_reload_fvs` so the mixins can
+        rely on a known set of pre-initialized attributes.
         """
         self.keyfile_path = None
         self.keyfile = None

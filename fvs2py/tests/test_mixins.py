@@ -1,9 +1,9 @@
 """Stub-based unit tests for the focused mixins under `fvs2py._mixins`.
 
-These tests exercise each mixin's Python-side logic without loading the real
-FVS shared library. Where a mixin method has to invoke a ctypes foreign
-function, the test substitutes a plain Python callable that mutates its
-output-pointer arguments.
+These tests exercise each mixin's Python-side logic without loading the real FVS
+shared library. Where a mixin method has to invoke a ctypes foreign function,
+the test substitutes a plain Python callable that mutates its output-pointer
+arguments.
 """
 
 from __future__ import annotations
@@ -135,12 +135,11 @@ def test_stand_mixin_stand_ids_returns_decoded_values():
 class _SimulationStub(SimulationMixin):
     """Minimal SimulationMixin host with writer-based ctypes stubs.
 
-    The `_fvs` stub is a no-op so `SimulationMixin.run` can exercise
-    its control flow without a real FVS library. `set_stop_point_codes`
-    is stubbed to a no-op as well; tests that want to observe or override it
-    assign directly on the instance. `_invoke` mirrors
-    `fvs2py._core.FvsCore._invoke` so the mixin exercises the real
-    registry against the attribute-level stubs bound below.
+    The `_fvs` stub is a no-op so `SimulationMixin.run` can exercise its control
+    flow without a real FVS library. `set_stop_point_codes` is stubbed to a
+    no-op as well; tests that want to observe or override it assign directly on
+    the instance. `_invoke` mirrors `fvs2py._core.FvsCore._invoke` so the mixin
+    exercises the real registry against the attribute-level stubs bound below.
     """
 
     def __init__(self, itrncd=0, exit_code=0, restart_code=0):
@@ -198,8 +197,9 @@ def test_simulation_mixin_run_does_not_flush_when_stand_not_done():
 
 
 def test_simulation_mixin_run_flushes_when_stand_done():
-    # restart_code == DONE_RUNNING_STAND and itrncd already at FINISHED_ALL_STANDS
-    # means the while-loop exits immediately but the flush call still fires.
+    # restart_code == DONE_RUNNING_STAND and itrncd already at
+    # FINISHED_ALL_STANDS means the while-loop exits immediately but the flush
+    # call still fires.
     stub = _SimulationStub(
         itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
         restart_code=int(FvsRestartCode.DONE_RUNNING_STAND),
@@ -216,10 +216,10 @@ def test_simulation_mixin_run_batch_without_keyfile_raises():
 
 
 def test_simulation_mixin_run_batch_does_not_flush_on_stand_done():
-    # Identical setup to test_simulation_mixin_run_flushes_when_stand_done
-    # but via run_batch: itrncd starts at FINISHED_ALL_STANDS (loop skipped)
-    # and restart_code == DONE_RUNNING_STAND. run() would emit one flush _fvs
-    # call; run_batch must NOT.
+    # Identical setup to test_simulation_mixin_run_flushes_when_stand_done but
+    # via run_batch: itrncd starts at FINISHED_ALL_STANDS (loop skipped) and
+    # restart_code == DONE_RUNNING_STAND. run() would emit one flush _fvs call;
+    # run_batch must NOT.
     stub = _SimulationStub(
         itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
         restart_code=int(FvsRestartCode.DONE_RUNNING_STAND),
@@ -590,14 +590,14 @@ def test_trees_mixin_add_trees_rejects_when_no_plots_loaded():
 
 class _EventStub(EventMixin):
     """Minimal EventMixin host with scenario-shaped `_fvsEvmonAttr` and
-    `_fvsAddActivity` writer stubs. Tests toggle `keyfile`,
-    `stop_point_code`, and `dims` to exercise each guard branch.
+    `_fvsAddActivity` writer stubs. Tests toggle `keyfile`, `stop_point_code`,
+    and `dims` to exercise each guard branch.
 
-    The fvsEvmonAttr stub records every GET by `attr_name` and writes
-    the corresponding value into the caller's INOUT buffer; unknown
-    names drop an rc=1 to surface through `attr_accessor_policy`.
-    The fvsAddActivity stub records year, code, params, and nparams for
-    test-side assertions and accepts a configurable return code.
+    The fvsEvmonAttr stub records every GET by `attr_name` and writes the
+    corresponding value into the caller's INOUT buffer; unknown names drop an
+    rc=1 to surface through `attr_accessor_policy`. The fvsAddActivity stub
+    records year, code, params, and nparams for test-side assertions and accepts
+    a configurable return code.
     """
 
     def __init__(

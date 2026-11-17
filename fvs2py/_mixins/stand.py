@@ -21,10 +21,10 @@ from fvs2py.constants import (
 class StandMixin:
     """Expose stand-level FVS outputs: dimensions, identifiers, summary table.
 
-    Assumes the composed class provides `FvsCore._invoke` for registry
-    dispatch and the Python-side buffers `_stand_id`, `_stand_cn`,
-    `_mgmt_id` (initialized by `FVS._initialize_attributes`), and
-    `_require_keyfile` from `ControlMixin`.
+    Assumes the composed class provides `FvsCore._invoke` for registry dispatch
+    and the Python-side buffers `_stand_id`, `_stand_cn`, `_mgmt_id`
+    (initialized by `FVS._initialize_attributes`), and `_require_keyfile` from
+    `ControlMixin`.
     """
 
     _invoke: Callable[..., Any]
@@ -43,8 +43,8 @@ class StandMixin:
         """Return stand identification codes.
 
         Raises:
-            RuntimeError: If no keyfile has been loaded or `run` has not
-                been called.
+            RuntimeError: If no keyfile has been loaded or `run` has not been
+                called.
         """
         self._require_keyfile(started=True)
 
@@ -68,8 +68,8 @@ class StandMixin:
     def summary(self) -> pd.DataFrame | None:
         """Return a dataframe with FVS Summary Statistics for all initiated cycles.
 
-        The returned dataframe omits cycles that have not yet been initiated, which are
-        identifiable where all values in that row are zero.
+        The returned dataframe omits cycles that have not yet been initiated,
+        which are identifiable where all values in that row are zero.
         """
         dims = self.dims
         if dims[STR_NCYCLES] == 0:

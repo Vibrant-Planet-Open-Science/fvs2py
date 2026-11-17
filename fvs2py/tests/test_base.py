@@ -48,8 +48,8 @@ def keyfile(tmp_path):
     database_path = tmp_path / "FVSOut.db"
 
     # need to make sure keyfile puts FVSOut.db in temp path so it's torn down
-    # even though TEST_KEYFILE doesn't include command to generate a DB, if
-    # FVS encounters an error or warning, it will generate one anyways
+    # even though TEST_KEYFILE doesn't include command to generate a DB, if FVS
+    # encounters an error or warning, it will generate one anyways
     keyfile_content = TEST_KEYFILE_PATH.read_text().replace(
         "STDIDENT", f"DATABASE\nDSNOUT\n{database_path}\nEND\nSTDIDENT"
     )
@@ -144,8 +144,8 @@ def test_run_with_keyfile_succeeds(fvs, keyfile):
 
 
 def test_run_batch_does_not_auto_flush(fvs, keyfile):
-    # run_batch preserves the historic non-flushing behavior: one call runs
-    # a stand's cycles until DONE_RUNNING_STAND, a second call flushes. The
+    # run_batch preserves the historic non-flushing behavior: one call runs a
+    # stand's cycles until DONE_RUNNING_STAND, a second call flushes. The
     # fixture keyfile is single-stand, but we opt out of the guard because
     # run_batch is the intended entry point for multi-stand callers.
     fvs.load_keyfile(keyfile, check_single_stand=False)
@@ -158,14 +158,14 @@ def test_run_batch_does_not_auto_flush(fvs, keyfile):
 
 
 def test_run_batch_does_not_clear_fvs_error(fvs, keyfile):
-    # Force an FVS error: put a directory where FVS wants to write its
-    # .out file, so FVS can't create it.
+    # Force an FVS error: put a directory where FVS wants to write its .out
+    # file, so FVS can't create it.
     keyfile.with_suffix(".out").mkdir()
     fvs.load_keyfile(keyfile, check_single_stand=False)
     assert fvs.itrncd == FvsItrnCode.ERROR
 
-    # run_batch must leave the error in place. The loop in its docstring
-    # relies on this to stop after an error.
+    # run_batch must leave the error in place. The loop in its docstring relies
+    # on this to stop after an error.
     fvs.run_batch()
     assert fvs.itrncd == FvsItrnCode.ERROR
 
@@ -174,8 +174,8 @@ def test_load_keyfile_multi_stand_raises_with_bypass_hint(
     fvs, keyfile, tmp_path
 ):
     # Duplicate the fixture's single STDIDENT stand so the keyfile trips the
-    # default single-stand guard. The resulting ValueError should surface
-    # both the underlying `validate_single_stand` diagnostic and the
+    # default single-stand guard. The resulting ValueError should surface both
+    # the underlying `validate_single_stand` diagnostic and the
     # load_keyfile-level hint pointing the caller at run_batch.
     multi_stand_body = keyfile.read_text()
     multi_stand_body += "\n" + multi_stand_body
@@ -391,9 +391,9 @@ def test_methods_require_fvs_library_following_unload(fvs, keyfile):
 
 def test_keyfile_reload_warning(fvs, keyfile, recwarn):
     # Reloading mid-simulation (itrncd neither NOT_STARTED nor
-    # FINISHED_ALL_STANDS) must warn the caller that the previous run's
-    # outputs may be incomplete. We exercise that by pausing at an
-    # intermediate stop-point and then calling load_keyfile again.
+    # FINISHED_ALL_STANDS) must warn the caller that the previous run's outputs
+    # may be incomplete. We exercise that by pausing at an intermediate
+    # stop-point and then calling load_keyfile again.
     fvs.load_keyfile(keyfile)
     fvs.run(
         stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON,
