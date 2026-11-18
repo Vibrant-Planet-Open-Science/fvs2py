@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.2...v0.3.0) (2026-11-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* opening a new FVS instance in the same Python process now closes an existing one if it is idle and raises if it is mid-run.
+
+### Features
+
+* allows one open FVS instance per process ([#80](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/80)) ([c322dc3](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/c322dc33447d0ccb0ffc76f2fd451d32a5f32d2d))
+
 ## [0.2.2](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.1...v0.2.2) (2026-11-17)
 
 
