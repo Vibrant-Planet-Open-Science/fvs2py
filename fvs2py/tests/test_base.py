@@ -39,7 +39,7 @@ def fvs():  # setup and teardown for FVS loaded from DLL/SO
     fvs = FVS(TEST_DLL)
     yield fvs
     # Teardown code executed after each test function
-    fvs._unload_fvs()
+    fvs.close()
 
 
 @pytest.fixture
@@ -270,7 +270,7 @@ def test_dims(keyfile):
     assert fvs.dims[STR_NTREES] == 2
     assert fvs.dims[STR_NCYCLES] == 10
     assert fvs.dims[STR_NPLOTS] == 1
-    fvs._unload_fvs()
+    fvs.close()
 
 
 def test_stand_ids_without_load(fvs, keyfile):
@@ -335,7 +335,7 @@ def test_species_codes(variant):
 
     assert set(fvs.species_codes.columns) == set(SPECIES_COLUMN_NAMES)
     assert fvs.species_codes.shape == (max_species, len(SPECIES_COLUMN_NAMES))
-    fvs._unload_fvs()
+    fvs.close()
 
 
 @pytest.mark.parametrize("variant", FvsVariant)
@@ -358,7 +358,7 @@ def test_species_attrs(variant, keyfile, recwarn):
     max_species = dims[STR_MAXSPECIES]
     assert set(fvs.species_attrs.columns) == set(SPECIES_ATTRS)
     assert fvs.species_attrs.shape == (max_species, len(SPECIES_ATTRS))
-    fvs._unload_fvs()
+    fvs.close()
 
 
 def test_species_attr_get_set(fvs, keyfile):
@@ -401,12 +401,12 @@ def test_load_keyfile_after_run(fvs, keyfile):
     assert fvs.summary is None  # results of first run were cleared
 
 
-def test_methods_require_fvs_library_following_unload(fvs, keyfile):
+def test_methods_raise_after_close(fvs, keyfile):
     fvs.load_keyfile(keyfile)
-    fvs._unload_fvs()
-    with pytest.raises(RuntimeError, match="FVS library not loaded"):
+    fvs.close()
+    with pytest.raises(RuntimeError, match="is closed"):
         fvs.run()
-    with pytest.raises(RuntimeError, match="FVS library not loaded"):
+    with pytest.raises(RuntimeError, match="is closed"):
         fvs.species_attrs
 
 
@@ -428,3 +428,96 @@ def test_keyfile_reload_warning(fvs, keyfile, recwarn):
         str(w.message)
         == "FVS had not completed the previous simulation. Outputs from that simulation may be incomplete."
     )
+
+
+# -- One open instance per process ---------------------------------------------
+
+
+def test_opening_second_instance_closes_idle_first(keyfile):
+    a = FVS(TEST_DLL)
+    a.load_keyfile(keyfile)
+    a.run()
+    b = FVS(TEST_DLL)
+    assert a.closed
+    assert not b.closed
+    with pytest.raises(RuntimeError, match=f"keyfile {keyfile}.* is closed"):
+        a.itrncd
+    # b got a fresh library, not a's finished state.
+    assert b.itrncd == FvsItrnCode.NOT_STARTED
+    b.close()
+
+
+@pytest.mark.parametrize(
+    ("run_kwargs", "restart_name"),
+    [
+        (
+            {
+                "stop_point_code": FvsStopPointCode.AFTER_FIRST_EVMON,
+                "stop_point_year": 2010,
+            },
+            "AFTER_FIRST_EVMON",
+        ),
+        ({}, "DONE_RUNNING_STAND"),
+    ],
+)
+def test_opening_second_instance_raises_while_first_mid_run(
+    keyfile, run_kwargs, restart_name
+):
+    a = FVS(TEST_DLL)
+    a.load_keyfile(keyfile)
+    a.run_batch(**run_kwargs)
+    restart_before = a.restart_code
+    assert restart_before.name == restart_name
+
+    with pytest.raises(RuntimeError) as excinfo:
+        FVS(TEST_DLL)
+    msg = str(excinfo.value)
+    for part in (
+        "variant SO",
+        f"keyfile {keyfile}",
+        "stand 12345",
+        f"paused at {restart_name}",
+    ):
+        assert part in msg
+
+    # a is untouched and can still finish.
+    assert not a.closed
+    assert a.restart_code == restart_before
+    a.run()
+    assert a.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
+    a.close()
+
+
+def test_close_frees_slot_for_paused_instance(keyfile):
+    a = FVS(TEST_DLL)
+    a.load_keyfile(keyfile)
+    a.run(stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON)
+    a.close()
+    a.close()  # idempotent
+    b = FVS(TEST_DLL)
+    assert b.itrncd == FvsItrnCode.NOT_STARTED
+    b.close()
+
+
+def test_opening_second_instance_warns_when_first_errored(keyfile):
+    keyfile.with_suffix(".out").mkdir()
+    a = FVS(TEST_DLL)
+    a.load_keyfile(keyfile)
+    assert a.itrncd == FvsItrnCode.ERROR
+    with pytest.warns(UserWarning, match="existing one in an error state"):
+        b = FVS(TEST_DLL)
+    assert a.closed
+    b.close()
+
+
+def test_second_variant_raises_instead_of_crashing(keyfile):
+    # On Linux every variant shares libgfortran's I/O units; interleaving two
+    # runs used to abort the process with a Fortran runtime error.
+    pn = FVS("/usr/local/lib/FVSpn.so")
+    pn.load_keyfile(keyfile)
+    pn.run(stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON)
+    with pytest.raises(RuntimeError, match="variant PN"):
+        FVS(TEST_DLL)
+    pn.run()
+    assert pn.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
+    pn.close()

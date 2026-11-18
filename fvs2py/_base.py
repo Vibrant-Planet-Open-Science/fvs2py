@@ -29,14 +29,36 @@ class FVS(FvsCore):
     loaded library and run state) or to the stateless helpers in `fvs2py._calls`
     and `fvs2py._attributes`.
 
+    Only one instance can be open per process, because FVS keeps its state in
+    process-wide globals. Opening a new instance closes the previous one if it
+    has not started, has finished, or has errored (with a warning). If the
+    previous one is paused mid-run, opening a new one raises instead. For
+    concurrent runs, use one process per instance.
+
     Args:
         lib_path: Path to the FVS shared library, e.g. `/usr/local/lib/FVSpn.so`.
 
     Raises:
         ImportError: If the library doesn't export every routine fvs2py needs.
+        RuntimeError: If another instance in this process is paused mid-run.
     """
 
     # -- Run lifecycle ---------------------------------------------------------
+
+    def close(self) -> None:
+        """Unload the FVS library so another instance can be opened.
+
+        Any run in progress is discarded, including the unflushed output of a
+        stand left at `FvsRestartCode.DONE_RUNNING_STAND` by `run_batch`.
+        Every other call on a closed instance raises `RuntimeError`. Closing
+        twice is a no-op.
+        """
+        self._unload_fvs()
+
+    @property
+    def closed(self) -> bool:
+        """Whether this instance's library has been unloaded."""
+        return self._lib is None
 
     def load_keyfile(
         self,

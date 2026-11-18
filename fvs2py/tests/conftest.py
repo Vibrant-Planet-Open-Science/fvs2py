@@ -1,4 +1,20 @@
+import contextlib
+
 import pytest
+
+from fvs2py import _core
+
+
+@pytest.fixture(autouse=True)
+def release_fvs_slot():
+    """Close any instance a test left open, so it can't wedge the next test."""
+    yield
+    holder = _core._ACTIVE
+    if holder is not None:
+        # Mocked libraries can't be dlclosed.
+        with contextlib.suppress(Exception):
+            holder.close()
+        _core._ACTIVE = None
 
 
 @pytest.fixture
