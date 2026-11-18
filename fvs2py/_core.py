@@ -11,15 +11,61 @@ from __future__ import annotations
 import ctypes as ct
 import logging
 import os
+import threading
 import warnings
 from pathlib import Path
 from typing import Any
 
+from fvs2py import _calls
 from fvs2py._routines import FVS_ROUTINES
 from fvs2py.common import load_dll, unload_dll
 from fvs2py.constants import EVMON_ATTRS
 from fvs2py.enums import FvsItrnCode, FvsRestartCode, FvsStopPointCode
 from fvs2py.keyfile import validate_single_stand
+
+# FVS keeps its run state in process-wide Fortran globals, and on Linux every
+# variant shares one libgfortran I/O unit table, so only one instance may hold a
+# loaded library at a time. `_load_fvs` claims the slot; `_unload_fvs` releases.
+_ACTIVE: FvsCore | None = None
+# One global lock: FVS itself is not thread-safe. Reentrant because eviction
+# unloads the holder under the lock.
+_ACTIVE_LOCK = threading.RLock()
+
+
+def _evict_or_raise(holder: FvsCore) -> None:
+    """Close `holder` unless it is mid-run, in which case raise.
+
+    A holder that has not started, has finished, or has errored is closed (with
+    a warning for an error). One paused at a stop point, or at
+    `DONE_RUNNING_STAND` with its output not yet flushed, is left untouched.
+
+    Raises:
+        RuntimeError: If `holder` is mid-run.
+    """
+    itrncd = holder._invoke("fvsGetRtnCode")
+    if itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
+        restart = holder._invoke("fvsGetRestartCode")
+        if restart != FvsRestartCode.INITIALIZED:
+            stand = _calls.stand_ids(holder._invoke)["stand_id"]
+            msg = (
+                "Another FVS instance is still running in this process "
+                f"(variant {holder.variant}, keyfile {holder.keyfile_path}, "
+                f"stand {stand}, paused at {FvsRestartCode(restart).name}). "
+                "FVS keeps its state in process-wide globals, so only one "
+                "instance can be open at a time. Finish that run (call run() "
+                "or run_batch() until itrncd is FINISHED_ALL_STANDS), or call "
+                "close() on it to discard it."
+            )
+            raise RuntimeError(msg)
+    elif itrncd == FvsItrnCode.ERROR:
+        exit_code = holder._invoke("fvsGetICCode")
+        msg = (
+            "While creating a new FVS instance, encountered an existing one in "
+            f"an error state that will now be closed (variant {holder.variant},"
+            f" keyfile {holder.keyfile_path}, exit code {exit_code})."
+        )
+        warnings.warn(msg, stacklevel=4)
+    holder._unload_fvs()
 
 
 class FvsCore:
@@ -61,18 +107,35 @@ class FvsCore:
             RuntimeError: If the library has been unloaded.
         """
         if self._lib is None:
-            msg = f"FVS library not loaded, unable to call {name}."
+            msg = (
+                f"This FVS instance (keyfile {self.keyfile_path}) is closed: "
+                "another instance was opened, or close() was called. Unable "
+                f"to call {name}."
+            )
             raise RuntimeError(msg)
         return FVS_ROUTINES[name].call(self._funcs[name], **kwargs)
 
     def _load_fvs(self) -> None:
         """Load the FVS shared library and bind every routine in `FVS_ROUTINES`.
 
-        Tries the `name_` mangling first, then the un-mangled name.
+        Tries the `name_` mangling first, then the un-mangled name. Claims the
+        process-wide slot, closing the previous holder first if it is idle.
 
         Raises:
             ImportError: If any routines are missing or not callable.
+            RuntimeError: If another instance is mid-run.
         """
+        global _ACTIVE
+        with _ACTIVE_LOCK:
+            # Evict before loading: on the same path, dlopen would hand back
+            # the holder's handle and its state.
+            if _ACTIVE is not None and _ACTIVE is not self:
+                _evict_or_raise(_ACTIVE)
+            self._bind_routines()
+            _ACTIVE = self
+
+    def _bind_routines(self) -> None:
+        """Load the library and bind every routine in `FVS_ROUTINES`."""
         self._lib = load_dll(self.lib_path)
         missing: list[str] = []
         for name in FVS_ROUTINES:
@@ -94,11 +157,15 @@ class FvsCore:
             raise ImportError(msg)
 
     def _unload_fvs(self) -> None:
-        """Unload the FVS shared library, if any, and drop its routines."""
-        self._funcs.clear()
-        if self._lib:
-            unload_dll(self._lib)
-            self._lib = None
+        """Unload the library, if any, drop its routines, and free the slot."""
+        global _ACTIVE
+        with _ACTIVE_LOCK:
+            if _ACTIVE is self:
+                _ACTIVE = None
+            self._funcs.clear()
+            if self._lib:
+                unload_dll(self._lib)
+                self._lib = None
 
     def _reload_fvs(self) -> None:
         """Unload the library, load a fresh copy, and reset Python state."""

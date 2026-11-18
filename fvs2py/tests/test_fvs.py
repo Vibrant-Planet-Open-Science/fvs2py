@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from fvs2py import FVS
+from fvs2py import FVS, _core
 from fvs2py._attributes import FFE, SPECIES, SVS_OBJECTS, TREES
 from fvs2py.constants import (
     FFE_FALLYRS_ATTRS,
@@ -168,6 +168,8 @@ def make_fvs(mock_valid_fvs_dll):  # noqa: ARG001 (patches ctypes.CDLL)
         if started:
             overrides.setdefault("itrncd", int(FvsItrnCode.FINISHED_ALL_STANDS))
         lib = FakeLib(**overrides)
+        # Fakes have no real library to evict; drop any earlier one's slot.
+        _core._ACTIVE = None
         fvs = FVS("/not/a/real/dir/FVSxx.so")
         fvs._funcs.update(lib.funcs())
         fvs.keyfile = keyfile
