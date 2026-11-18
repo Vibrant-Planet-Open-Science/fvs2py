@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.2](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.1...v0.2.2) (2026-11-17)
+
+
+### Features
+
+* returns enum members from FVS status and stop point codes ([#78](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/78)) ([d3aec83](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/d3aec83f2abca2c89447c13c2a8c87777bfe38af))
+
+
+### Bug Fixes
+
+* adds restart code 7 to FvsRestartCode ([#77](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/77)) ([2da8122](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/2da81221e0c130dc5ef7b5067c87693f3e374a6a))
+* bases the not-started guard on FVS return codes ([#76](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/76)) ([fa1ae69](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/fa1ae6935140a4c8c92229caa8abb35b88703d78))
+* replaces attribute dispatchers with AttributeTable and stops buffer aliasing ([#72](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/72)) ([1082dd6](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/1082dd6051bec00ce5d14c895b3b0a1896a1c846))
+
+
+### Documentation
+
+* adds CONTRIBUTING.md with dev setup, issue, style, and commit guidelines ([#67](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/67)) ([bbcc3cc](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/bbcc3ccd1f309b71f8cdae2b8374c9902f6cd5ec))
+* reworks the demo notebook with a steering example and corrects stop_point_year docs ([#79](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/79)) ([21e34fb](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/21e34fba557660927efdf1a8ddc8d81af19a133c))
+
+
+### Code Refactoring
+
+* moves the library-loaded guard into _invoke ([#71](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/71)) ([911c809](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/911c8093b9e0436037f9dc08f83603fd89f9e4cf))
+* replaces mixins with a thin FVS facade over FvsCore ([#75](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/75)) ([a8041a0](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/a8041a0cbfd2c24763e510ae09593206201121a0))
+* simplifies the simulation lifecycle ([#74](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/74)) ([f94a5a5](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/f94a5a58c74132fba58f26ab5a63e3e90d2168cc))
+* tightens the routine registry ([#73](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/73)) ([8c2e8aa](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/8c2e8aae17f59a15240229285d674a79b6ac9e0d))
+
 ## [0.2.1](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.0...v0.2.1) (2026-11-09)
 
 
