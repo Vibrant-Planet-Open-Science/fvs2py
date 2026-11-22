@@ -13,7 +13,7 @@ If you're confident the problem is in FVS's own results rather than in fvs2py, y
 
 ## Development environment
 
-A **dev container** is provided under [`.devcontainer/`](.devcontainer/) for VS Code. Open the repository with **Dev Containers: Reopen in Container** to get Python tooling and extensions preconfigured. On first open, `postCreateCommand` runs `uv sync --frozen --extra dev` (creating a project-local `.venv` in your clone, gitignored) and installs pre-commit hooks. After pulling changes that touch the Dockerfile or lockfile, **rebuild** the dev container (or run `uv sync --extra dev` manually).
+A **dev container** is provided under [`.devcontainer/`](.devcontainer/) for VS Code. Open the repository with **Dev Containers: Reopen in Container** to get Python tooling and extensions preconfigured. On first open, `postCreateCommand` runs `uv sync --frozen --extra dev` (creating a project-local `.venv` in your clone, gitignored) and installs pre-commit hooks. After pulling changes that touch `.devcontainer/` or the lockfile, **rebuild** the dev container (or run `uv sync --extra dev` manually).
 
 The `.venv` directory lives on your host via the bind-mounted workspace (Linux binaries from the container). You can delete it and re-run `uv sync --extra dev` to recreate.
 

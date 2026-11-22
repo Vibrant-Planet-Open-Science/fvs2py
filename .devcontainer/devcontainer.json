@@ -1,13 +1,6 @@
 {
     "name": "fvs2py Dev Container",
-    "build": {
-        "dockerfile": "../Dockerfile",
-        "context": "..",
-        "target": "dev",
-        "args": {
-            "FVS_TAG": "FS2026.1"
-        }
-    },
+    "image": "ghcr.io/astral-sh/uv:0.7-python3.12-bookworm-slim",
     "remoteUser": "fvs2py-dev",
     "updateRemoteUserUID": true,
     "remoteEnv": {
