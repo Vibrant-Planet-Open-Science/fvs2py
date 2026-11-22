@@ -1,5 +1,6 @@
 import importlib.resources
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -451,7 +452,9 @@ def test_opening_second_instance_closes_idle_first(keyfile):
     b = FVS(TEST_VARIANT)
     assert a.closed
     assert not b.closed
-    with pytest.raises(RuntimeError, match=f"keyfile {keyfile}.* is closed"):
+    with pytest.raises(
+        RuntimeError, match=f"keyfile {re.escape(str(keyfile))}.* is closed"
+    ):
         a.itrncd
     # b got a fresh library, not a's finished state.
     assert b.itrncd == FvsItrnCode.NOT_STARTED
