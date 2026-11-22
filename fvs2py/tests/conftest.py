@@ -82,6 +82,27 @@ def mock_valid_fvs_dll(mocker):
         def fvsTreeAttr():
             return
 
+        def fvsSetMemoryTables():
+            return
+
+        def fvsTableList():
+            return
+
+        def fvsTableDims():
+            return
+
+        def fvsTableColumns():
+            return
+
+        def fvsTableNum():
+            return
+
+        def fvsTableTxt():
+            return
+
+        def fvsClearTable():
+            return
+
     mock_dll_obj = mocker.MagicMock(spec=ValidFvsDLL)
     mocker.patch("ctypes.CDLL", return_value=mock_dll_obj)
 
@@ -177,6 +198,27 @@ def mock_valid_reformatted_fvs_dll(mocker):
             return
 
         def fvstreeattr_():
+            return
+
+        def fvssetmemorytables_():
+            return
+
+        def fvstablelist_():
+            return
+
+        def fvstabledims_():
+            return
+
+        def fvstablecolumns_():
+            return
+
+        def fvstablenum_():
+            return
+
+        def fvstabletxt_():
+            return
+
+        def fvscleartable_():
             return
 
         def fvsunitconversion_():

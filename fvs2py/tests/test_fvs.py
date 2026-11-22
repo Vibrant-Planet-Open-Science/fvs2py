@@ -41,6 +41,17 @@ from fvs2py.enums import (
 
 KEYFILE = "STDIDENT\n"
 
+# One in-memory output table: (name, declared type) columns, then rows. NULL is
+# None. The long text overflows the first text buffer, forcing the retry.
+LONG = "x" * 200
+TABLE_COLS = [
+    ("CaseID", "TEXT"),
+    ("Year", "INTEGER"),
+    ("BA", "REAL"),
+    ("StandID", "CHAR(26)"),
+]
+TABLE_ROWS = [("c1", 2000, 10.5, "S1"), ("c1", 2010, None, LONG)]
+
 
 class FakeLib:
     """In-memory FVS: fixed dims and codes, stored attribute values."""
@@ -68,6 +79,9 @@ class FakeLib:
         self.exit_code = 0
         self.add_activity_rc = 0
         self.evmon: dict[str, float] = {}
+        self.tables = {"FVS_Summary2": (TABLE_COLS, TABLE_ROWS)}
+        self.memory_on = 0
+        self.text_always_too_small = False
         for key, value in overrides.items():
             if key in self.dims:
                 self.dims[key] = value
@@ -149,6 +163,76 @@ class FakeLib:
             )
             nch.value = len(buf.value)
 
+        def put(buf, nch, entries):
+            """Write NUL-terminated entries if they fit; return rtncode."""
+            data = b"".join(e.encode() + b"\0" for e in entries)
+            fits = len(data) <= nch.value
+            if fits:
+                buf[: len(data)] = data
+            nch.value = len(data)
+            return 0 if fits else 2
+
+        def lookup(name, rtncode):
+            key = name.decode()
+            rtncode.value = 4 if not key else 0 if key in lib.tables else 1
+            return lib.tables.get(key)
+
+        def text_cols(cols):
+            return [
+                i for i, (_, t) in enumerate(cols) if "CHAR" in t or t == "TEXT"
+            ]
+
+        def set_memory_tables(on, rtncode):
+            lib.memory_on = on.value
+            rtncode.value = 0
+
+        def table_list(names, nch, ntables, rtncode):
+            ntables.value = len(lib.tables)
+            rtncode.value = put(names, nch, lib.tables)
+
+        def table_dims(name, _nch, nrow, nnum, ntxt, rtncode):
+            if (t := lookup(name, rtncode)) is None:
+                return
+            cols, rows = t
+            nrow.value, ntxt.value = len(rows), len(text_cols(cols))
+            nnum.value = len(cols) - ntxt.value
+
+        def table_columns(name, _nch, ncol, *rest):
+            cols_buf, ncolch, types, ntypch, istxt, rtncode = rest
+            if (t := lookup(name, rtncode)) is None:
+                return
+            cols, _ = t
+            if ncol.value != len(cols):
+                ncol.value, rtncode.value = len(cols), 2
+                return
+            istxt[:] = [i in text_cols(cols) for i in range(len(cols))]
+            rtncode.value = max(
+                put(cols_buf, ncolch, [c for c, _ in cols]),
+                put(types, ntypch, [ty for _, ty in cols]),
+            )
+
+        def table_num(name, _nch, _row0, _nrows, _nnum, values, rtncode):
+            if (t := lookup(name, rtncode)) is None:
+                return
+            cols, rows = t
+            num = [i for i in range(len(cols)) if i not in text_cols(cols)]
+            for r, row in enumerate(rows):
+                values[r] = [np.nan if row[i] is None else row[i] for i in num]
+
+        def table_txt(name, _nch, _row0, _nrows, _ntxt, text, ntextch, rtncode):
+            if (t := lookup(name, rtncode)) is None:
+                return
+            cols, rows = t
+            txt = text_cols(cols)
+            entries = [row[i] or "" for row in rows for i in txt]
+            rtncode.value = put(text, ntextch, entries)
+            if lib.text_always_too_small:
+                rtncode.value = 2
+
+        def clear_table(name, _nch, rtncode):
+            if lookup(name, rtncode) is not None:
+                del lib.tables[name.decode()]
+
         return {
             "fvs": fvs,
             "fvsDimSizes": writer(lambda: [*map(lib.dims.get, lib.dims)]),
@@ -162,6 +246,13 @@ class FakeLib:
             "fvsSpeciesCode": species_code,
             "fvsSetStoppointCodes": set_stop_points,
             "fvsGetBuildInfo": build_info,
+            "fvsSetMemoryTables": set_memory_tables,
+            "fvsTableList": table_list,
+            "fvsTableDims": table_dims,
+            "fvsTableColumns": table_columns,
+            "fvsTableNum": table_num,
+            "fvsTableTxt": table_txt,
+            "fvsClearTable": clear_table,
             "fvsAddActivity": add_activity,
             "fvsEvmonAttr": evmon,
             "fvsTreeAttr": table_attr(TREES),
@@ -532,3 +623,60 @@ def test_add_activity_rc_one_raises_valueerror(make_fvs):
     fvs, _ = make_fvs(add_activity_rc=1)
     with pytest.raises(ValueError, match="failed to add the activity"):
         fvs.add_activity(2025, FvsBaseActivity.THINPRSC)
+
+
+# ---------------------------------------------------------------------------
+# Output tables
+# ---------------------------------------------------------------------------
+
+
+def test_load_keyfile_applies_memory_tables(make_fvs, tmp_path):
+    fvs, lib = make_fvs(started=False, itrncd=int(FvsItrnCode.NOT_STARTED))
+    keyfile = tmp_path / "x.key"
+    keyfile.write_text("STDIDENT\nPROCESS\nSTOP\n")
+    fvs.memory_tables = True
+    fvs.load_keyfile(keyfile)
+    assert lib.memory_on == 1
+
+
+def test_get_table_restores_table_order_and_types(make_fvs):
+    fvs, _ = make_fvs()
+    df = fvs.get_table("FVS_Summary2")
+    assert list(df.columns) == ["CaseID", "Year", "BA", "StandID"]
+    assert str(df["Year"].dtype) == "Int64"
+    assert df["BA"].dtype == np.float64
+    assert df["CaseID"].tolist() == ["c1", "c1"]
+    assert df["Year"].tolist() == [2000, 2010]
+    assert df["BA"].iloc[0] == 10.5
+    assert np.isnan(df["BA"].iloc[1])
+    assert df["StandID"].tolist() == ["S1", LONG]
+
+
+def test_get_table_empty_table_keeps_columns(make_fvs):
+    fvs, lib = make_fvs()
+    lib.tables["FVS_Summary2"] = (TABLE_COLS, [])
+    df = fvs.get_table("FVS_Summary2")
+    assert list(df.columns) == ["CaseID", "Year", "BA", "StandID"]
+    assert df.empty
+
+
+def test_get_table_buffer_still_too_small_raises(make_fvs):
+    fvs, _ = make_fvs(text_always_too_small=True)
+    with pytest.raises(RuntimeError, match="return code: 2"):
+        fvs.get_table("FVS_Summary2")
+
+
+@pytest.mark.parametrize(
+    ("name", "exc"), [("Nope", KeyError), ("", ValueError)]
+)
+def test_get_table_bad_name_raises(make_fvs, name, exc):
+    fvs, _ = make_fvs()
+    with pytest.raises(exc):
+        fvs.get_table(name)
+
+
+def test_clear_table_removes_it_from_table_names(make_fvs):
+    fvs, _ = make_fvs()
+    assert fvs.table_names == ["FVS_Summary2"]
+    fvs.clear_table("FVS_Summary2")
+    assert fvs.table_names == []

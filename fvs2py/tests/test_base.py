@@ -532,3 +532,33 @@ def test_second_variant_raises_instead_of_crashing(keyfile):
     pn.run()
     assert pn.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     pn.close()
+
+
+@pytest.fixture
+def summary_keyfile(tmp_path):
+    """The SO keyfile writing FVS_Summary2 to `FVSOut.db` in `tmp_path`."""
+    database_block = (
+        f"DATABASE\nDSNOUT\n{tmp_path / 'FVSOut.db'}\n"
+        f"{'SUMMARY':<10}{'2':>10}\nEND\nSTDIDENT"
+    )
+    path = tmp_path / "summary.key"
+    path.write_text(
+        TEST_KEYFILE_PATH.read_text().replace("STDIDENT", database_block)
+    )
+    return path
+
+
+def test_memory_tables(summary_keyfile):
+    fvs = FVS(TEST_DLL, memory_tables=True)
+    fvs.load_keyfile(summary_keyfile)
+    fvs.run()
+
+    assert "FVS_Summary2" in fvs.table_names
+    df = fvs.get_table("FVS_Summary2")
+    assert list(df.columns[:3]) == ["CaseID", "StandID", "Year"]
+    assert len(df) == len(fvs.summary)
+    assert not (summary_keyfile.parent / "FVSOut.db").exists()
+
+    fvs.clear_table("FVS_Summary2")
+    assert "FVS_Summary2" not in fvs.table_names
+    fvs.close()
