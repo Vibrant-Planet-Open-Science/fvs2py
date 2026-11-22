@@ -6,7 +6,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  pytest:
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +27,14 @@ jobs:
       - run: uv sync --frozen --extra dev
 
       - run: uv run pytest fvs2py
+
+  # The one check the main ruleset requires, so the matrix can change freely.
+  test:
+    if: always()
+    needs: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.pytest.result }}" = success
 
   nbval:
     needs: test
