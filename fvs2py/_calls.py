@@ -37,6 +37,25 @@ from fvs2py.constants import (
 from fvs2py.enums import FvsActivity
 
 
+def _read_text(invoke: Invoke, name: str, size: int) -> str:
+    """Call a routine that fills a `size`-byte text buffer and decode it."""
+    buf = ct.create_string_buffer(size)
+    nch = invoke(name, buf=buf, buflen=ct.c_int(size))
+    return buf.raw[:nch].decode()
+
+
+def version(invoke: Invoke) -> str:
+    """Short FVS version string, `"<tag> (<org>)"`."""
+    return _read_text(invoke, "fvsGetVersion", 64)
+
+
+def build_info(invoke: Invoke) -> dict[str, str]:
+    """FVS build provenance, keyed by field name."""
+    text = _read_text(invoke, "fvsGetBuildInfo", 512)
+    fields = (line.partition(":") for line in text.splitlines())
+    return {k.strip(): v.strip() for k, _, v in fields}
+
+
 def stand_ids(invoke: Invoke) -> dict[str, str]:
     """Stand ID, stand CN, and management ID of the current stand."""
     stand_id = ct.create_string_buffer(26)

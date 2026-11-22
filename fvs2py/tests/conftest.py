@@ -40,7 +40,13 @@ def mock_valid_fvs_dll(mocker):
         def fvsFFEAttrs():
             return
 
+        def fvsGetBuildInfo():
+            return
+
         def fvsGetRestartCode():
+            return
+
+        def fvsGetVersion():
             return
 
         def fvsGetRtnCode():
@@ -131,7 +137,13 @@ def mock_valid_reformatted_fvs_dll(mocker):
         def fvsffeattrs_():
             return
 
+        def fvsgetbuildinfo_():
+            return
+
         def fvsgetrestartcode_():
+            return
+
+        def fvsgetversion_():
             return
 
         def fvsgetrtncode_():

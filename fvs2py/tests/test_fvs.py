@@ -141,6 +141,14 @@ class FakeLib:
         def set_stop_points(*_codes):
             pass
 
+        def build_info(buf, _buflen, nch):
+            buf.value = (
+                b"Version: 2027.1.1\nOrg:     USDAForestService\n"
+                b"Remote:  https://github.com/x/fvs.git\nBranch:  main\n"
+                b"Commit:  abc1234\nDate:    2026-11-21 19:05:11 +0000"
+            )
+            nch.value = len(buf.value)
+
         return {
             "fvs": fvs,
             "fvsDimSizes": writer(lambda: [*map(lib.dims.get, lib.dims)]),
@@ -153,6 +161,7 @@ class FakeLib:
             "fvsStandID": stand_id,
             "fvsSpeciesCode": species_code,
             "fvsSetStoppointCodes": set_stop_points,
+            "fvsGetBuildInfo": build_info,
             "fvsAddActivity": add_activity,
             "fvsEvmonAttr": evmon,
             "fvsTreeAttr": table_attr(TREES),
@@ -176,6 +185,18 @@ def make_fvs(mock_valid_fvs_dll):  # noqa: ARG001 (patches ctypes.CDLL)
         return fvs, lib
 
     return make
+
+
+def test_build_info_parses_fields(make_fvs):
+    fvs, _ = make_fvs()
+    assert fvs.build_info == {
+        "Version": "2027.1.1",
+        "Org": "USDAForestService",
+        "Remote": "https://github.com/x/fvs.git",
+        "Branch": "main",
+        "Commit": "abc1234",
+        "Date": "2026-11-21 19:05:11 +0000",
+    }
 
 
 # ---------------------------------------------------------------------------
