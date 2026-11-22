@@ -10,17 +10,19 @@ We will then build upon the addition of new subroutines in Fortran that extend t
 ## Installation
 
 ```bash
-pip install fvs2py
+pip install 'fvs2py[runtime]'
 ```
 
-fvs2py is a wrapper, and doesn't currently ship with the FVS libraries included. You supply a compiled FVS variant library, either your own build, an official [USFS release](https://www.fs.usda.gov/fvs/software/variantinstaller.php) (currently Windows only), or one from the [`usfs-fvs` container image](https://github.com/Vibrant-Planet-Open-Science/fvs-build/pkgs/container/usfs-fvs) (`ghcr.io/vibrant-planet-open-science/usfs-fvs`), which has every variant's library at `/usr/local/lib/FVS<variant>.so`. fvs2py requires FVS 2027.1.1 or later.  We're working to make updates to this package so that it can come with FVS libraries included and will keep this documentation up-to-date when those updates land.
+The `runtime` extra installs [fvs-runtime](https://pypi.org/project/fvs-runtime/), which has the shared libraries of the 22 US variants the USFS builds from Fortran, for Linux, macOS and Windows.
+
+If you omit the `runtime` extra and just do `pip install fvs2py` you will get the fvs2py package installed without any of the FVS shared libraries (use this only if you intend to build your own libraries that follow the same [FVS-API](https://github.com/USDAForestService/ForestVegetationSimulator/wiki/FVS-API) that fvs2py expects). We strongly recommend using `pip install 'fvs2py[runtime]'` unless you are building or customizing FVS variants yourself.
 
 ## Usage
 
 ```python
 from fvs2py import FVS
 
-fvs = FVS("/path/to/FVSpn.so")
+fvs = FVS("pn")  # or FVS(lib_path="/path/to/FVSpn.so")
 fvs.load_keyfile("name.key")
 fvs.run()
 fvs.summary  # pandas DataFrame
@@ -28,33 +30,29 @@ fvs.version     # "2027.1.1 (USDAForestService)"
 fvs.build_info  # dict: Version, Org, Remote, Branch, Commit, Date
 ```
 
-Log `fvs.build_info` alongside your run outputs to record exactly which FVS build produced them.
-
 ### Reading output tables in memory
 
 With `memory_tables=True`, FVS keeps its output database (the tables a keyfile's `DATABASE` block requests with `DSNOut`) in memory instead of writing a `.db` file, and you read the tables straight into DataFrames:
 
 ```python
-fvs = FVS("/path/to/FVSpn.so", memory_tables=True)
+fvs = FVS("pn", memory_tables=True)
 fvs.load_keyfile("name.key")
 fvs.run()
 fvs.table_names                     # ["FVS_Cases", "FVS_Summary2", ...]
-df = fvs.get_table("FVS_Summary2")  # pandas DataFrame, columns in table order
-fvs.clear_table("FVS_Summary2")
+fvs.get_table("FVS_Summary2")       # pandas DataFrame, columns in table order
 ```
 
-Read the tables you need before the next `load_keyfile`, which discards them. Text columns return NULL as `""`.
+## Command Line Interface (CLI)
 
-## Command line
-
-fvs2py also installs an `fvs` command that works like FVS executables do. These two commands are equivalent:
+fvs2py also installs an `fvs` command that works like FVS executables do. These commands are equivalent:
 
 ```bash
-FVSpn --keywordfile=name.key                        # FVS executable (PN variant)
-fvs --lib=/path/to/FVSpn.so --keywordfile=name.key  # fvs2py equivalent
+FVSpn --keywordfile=name.key                        # original FVS executable (PN variant)
+fvs --variant=pn --keywordfile=name.key             # fvs2py equivalent
+fvs --lib=/path/to/FVSpn.so --keywordfile=name.key  # fvs2py with your own library
 ```
 
-Most users of `fvs2py` should primarily expect to use the Python interface. The CLI is for running FVS in a separate process, so a crash by FVS doesn't take down your program and its output can be captured.
+Most users of `fvs2py` should primarily expect to use the Python interface. The CLI is for running FVS in a separate process to handle any crashes and catch outputs if FVS breaks.
 
 ## Contributing
 

@@ -40,7 +40,9 @@ Issues = "https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues"
 Changelog = "https://github.com/Vibrant-Planet-Open-Science/fvs2py/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+runtime = ["fvs-runtime>=2027.1.1"]
 dev = [
+    "fvs2py[runtime]",
     "ipykernel==7.2.0",
     "mypy==2.1.0",
     "nbval==0.11.0",
@@ -118,4 +120,8 @@ convention = "google"
 [tool.mypy]
 mypy_path = "fvs2py"
 files = "fvs2py"
+
+[[tool.mypy.overrides]]
+module = ["fvs_runtime"]
+ignore_missing_imports = true
 

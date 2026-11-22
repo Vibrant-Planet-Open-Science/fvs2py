@@ -270,7 +270,7 @@ def make_fvs(mock_valid_fvs_dll):  # noqa: ARG001 (patches ctypes.CDLL)
         lib = FakeLib(**overrides)
         # Fakes have no real library to evict; drop any earlier one's slot.
         _core._ACTIVE = None
-        fvs = FVS("/not/a/real/dir/FVSxx.so")
+        fvs = FVS(lib_path="/not/a/real/dir/FVSxx.so")
         fvs._funcs.update(lib.funcs())
         fvs.keyfile = keyfile
         return fvs, lib

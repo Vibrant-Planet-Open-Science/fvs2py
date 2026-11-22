@@ -59,6 +59,28 @@ def test_missing_lib_exits_2(tmp_path):
     assert exc.value.code == 2
 
 
+def test_variant_loads_fvs_runtime_library(fake_fvs, mocker):
+    lib, _ = fake_fvs
+    mocker.patch.object(cli, "runtime_library_path", return_value=lib)
+    assert cli.main(["--variant=pn", "--keywordfile=k.key"]) == 20
+    cli.FVS.assert_called_once_with(lib_path=lib)
+
+
+def test_unknown_variant_exits_2(mocker):
+    mocker.patch.object(
+        cli, "runtime_library_path", side_effect=LookupError("no xx")
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["--variant=xx"])
+    assert exc.value.code == 2
+
+
+def test_variant_and_lib_are_exclusive(tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["--variant=pn", f"--lib={tmp_path}/FVSpn.so"])
+    assert exc.value.code == 2
+
+
 def _out_without_timestamps(path: Path) -> str:
     # The .out header carries the run date and time.
     text = path.read_text()
