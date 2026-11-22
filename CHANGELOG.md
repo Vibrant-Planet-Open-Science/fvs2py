@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.0](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.3.1...v0.4.0) (2026-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* `lib_path` is now keyword-only, so `FVS("/path/to/FVSpn.so")` becomes `FVS(lib_path="/path/to/FVSpn.so")`.
+
+### Features
+
+* adds --version and --build-info to the fvs command ([#91](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/91)) ([402de6c](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/402de6c0efd037072fd459085bfb28f4e449627a))
+* loads FVS libraries from fvs-runtime by variant ([af40af5](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/af40af59f636ed6c6f46541e3cca3a04f9ac4fe6))
+* reports floating-point faults raised by FVS ([#92](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/92)) ([1a72962](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/1a72962015b16dfeb08d9c7faa083fe6f8f246e3))
+
+
+### Bug Fixes
+
+* reads all 22 FVS summary values, ending a buffer overflow ([#88](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/88)) ([02e2a54](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/02e2a54ec9bd08381f75f9b9a6bf5b327691e36c))
+
+
+### Documentation
+
+* re-runs the example notebook with FVS 2027.1.1 ([#90](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/90)) ([67c170a](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/67c170a90d5c20a66aea9d369a87c30ca08cd453))
+
 ## [0.3.1](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.3.0...v0.3.1) (2026-11-22)
 
 
