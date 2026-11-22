@@ -282,6 +282,33 @@ _TEXT_BUF = Routine(
     rc_param=None,
 )
 
+
+def memory_table_policy(rc: int) -> None:
+    """Raise for the in-memory table routines' error codes.
+
+    `1` (table not found, or memory mode off) surfaces as `KeyError`, `4` (name
+    empty or too long) as `ValueError`, and anything else non-zero, including a
+    `2` that survived the buffer retry, as `RuntimeError`.
+    """
+    if rc == 1:
+        msg = "table not found, or memory mode is off"
+        raise KeyError(msg)
+    if rc == 4:
+        msg = "table name is empty or too long"
+        raise ValueError(msg)
+    if rc != 0:
+        msg = f"unrecognized return code: {rc}"
+        raise RuntimeError(msg)
+
+
+def _table_name() -> tuple[Param, Param]:
+    """The `name`, `nch` pair every table routine takes first."""
+    return (
+        Param(name="name", ctype=ct.c_char_p),
+        Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+    )
+
+
 _RAW_ROUTINES: dict[str, Routine] = {
     # Keyed by un-mangled FVS routine name; params in Fortran declaration order.
     "fvs": Routine(
@@ -464,6 +491,81 @@ _RAW_ROUTINES: dict[str, Routine] = {
             Param(name="maxcol", ctype=ct.POINTER(ct.c_int)),
             out_int("rtncode"),
         ),
+    ),
+    # The in-memory table routines. List, Columns, and Txt report return code
+    # 2 when a buffer is too small, so `fvs2py._tables` reads `rtncode` itself.
+    "fvsSetMemoryTables": Routine(
+        params=(
+            Param(name="on", ctype=ct.POINTER(ct.c_int)),
+            out_int("rtncode"),
+        ),
+        rc_policy=memory_table_policy,
+    ),
+    "fvsTableList": Routine(
+        params=(
+            Param(name="names", ctype=ct.c_char_p),
+            Param(name="nch", ctype=ct.POINTER(ct.c_int)),
+            out_int("ntables"),
+            out_int("rtncode"),
+        ),
+        rc_param=None,
+    ),
+    "fvsTableDims": Routine(
+        params=(
+            *_table_name(),
+            out_int("nrow"),
+            out_int("nnum"),
+            out_int("ntxt"),
+            out_int("rtncode"),
+        ),
+        rc_policy=memory_table_policy,
+    ),
+    "fvsTableColumns": Routine(
+        params=(
+            *_table_name(),
+            Param(name="ncol", ctype=ct.POINTER(ct.c_int)),
+            Param(name="cols", ctype=ct.c_char_p),
+            Param(name="ncolch", ctype=ct.POINTER(ct.c_int)),
+            Param(name="types", ctype=ct.c_char_p),
+            Param(name="ntypch", ctype=ct.POINTER(ct.c_int)),
+            Param(
+                name="istxt",
+                ctype=np.ctypeslib.ndpointer(np.intc, flags=STR_C_CONTIGUOUS),
+            ),
+            out_int("rtncode"),
+        ),
+        rc_param=None,
+    ),
+    "fvsTableNum": Routine(
+        params=(
+            *_table_name(),
+            Param(name="row0", ctype=ct.POINTER(ct.c_int)),
+            Param(name="nrows", ctype=ct.POINTER(ct.c_int)),
+            Param(name="nnum", ctype=ct.POINTER(ct.c_int)),
+            # Fortran's column-major values(nnum, nrows) in C order.
+            Param(name="values", ctype=ndptr_f64("nrows", "nnum")),
+            out_int("rtncode"),
+        ),
+        rc_policy=memory_table_policy,
+    ),
+    "fvsTableTxt": Routine(
+        params=(
+            *_table_name(),
+            Param(name="row0", ctype=ct.POINTER(ct.c_int)),
+            Param(name="nrows", ctype=ct.POINTER(ct.c_int)),
+            Param(name="ntxt", ctype=ct.POINTER(ct.c_int)),
+            Param(name="text", ctype=ct.c_char_p),
+            Param(name="ntextch", ctype=ct.POINTER(ct.c_int)),
+            out_int("rtncode"),
+        ),
+        rc_param=None,
+    ),
+    "fvsClearTable": Routine(
+        params=(
+            *_table_name(),
+            out_int("rtncode"),
+        ),
+        rc_policy=memory_table_policy,
     ),
 }
 

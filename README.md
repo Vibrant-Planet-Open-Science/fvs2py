@@ -30,6 +30,21 @@ fvs.build_info  # dict: Version, Org, Remote, Branch, Commit, Date
 
 Log `fvs.build_info` alongside your run outputs to record exactly which FVS build produced them.
 
+### Reading output tables in memory
+
+With `memory_tables=True`, FVS keeps its output database (the tables a keyfile's `DATABASE` block requests with `DSNOut`) in memory instead of writing a `.db` file, and you read the tables straight into DataFrames:
+
+```python
+fvs = FVS("/path/to/FVSpn.so", memory_tables=True)
+fvs.load_keyfile("name.key")
+fvs.run()
+fvs.table_names                     # ["FVS_Cases", "FVS_Summary2", ...]
+df = fvs.get_table("FVS_Summary2")  # pandas DataFrame, columns in table order
+fvs.clear_table("FVS_Summary2")
+```
+
+Read the tables you need before the next `load_keyfile`, which discards them. Text columns return NULL as `""`.
+
 ## Command line
 
 fvs2py also installs an `fvs` command that works like FVS executables do. These two commands are equivalent:

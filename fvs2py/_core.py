@@ -71,7 +71,9 @@ def _evict_or_raise(holder: FvsCore) -> None:
 class FvsCore:
     """Loaded FVS library plus the Python-side state kept alongside it."""
 
-    def __init__(self, lib_path: str | os.PathLike) -> None:
+    def __init__(
+        self, lib_path: str | os.PathLike, *, memory_tables: bool = False
+    ) -> None:
         """Load the FVS shared library and bind its routines.
 
         Raises:
@@ -79,6 +81,9 @@ class FvsCore:
                 callable on the loaded library.
         """
         self.lib_path: Path = Path(lib_path).resolve()
+        # Not reset by `_reload_fvs`; `_load_keyfile` applies it to each fresh
+        # library.
+        self.memory_tables = memory_tables
         self._lib: ct.CDLL | None = None
         self._funcs: dict[str, Any] = {}
         # Parsed from the name as passed, since a resolved symlink may not
@@ -230,6 +235,7 @@ class FvsCore:
                 )
                 raise ValueError(msg) from exc
 
+        self._invoke("fvsSetMemoryTables", on=ct.c_int(int(self.memory_tables)))
         self._set_cmdline(f"--keywordfile={self.keyfile_path}")
 
     def _set_stop_point_codes(

@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from fvs2py import _calls
+from fvs2py import _calls, _tables
 from fvs2py._attributes import FFE, SPECIES, SVS_OBJECTS, TREES
 from fvs2py._core import FvsCore
 from fvs2py.constants import STR_MAXSPECIES, STR_NTREES
@@ -26,8 +26,8 @@ class FVS(FvsCore):
     """Main class for interacting with FVS at runtime.
 
     This class is the public interface. Each member delegates to `FvsCore` (the
-    loaded library and run state) or to the stateless helpers in `fvs2py._calls`
-    and `fvs2py._attributes`.
+    loaded library and run state) or to the stateless helpers in `fvs2py._calls`,
+    `fvs2py._attributes`, and `fvs2py._tables`.
 
     Only one instance can be open per process, because FVS keeps its state in
     process-wide globals. Opening a new instance closes the previous one if it
@@ -37,6 +37,10 @@ class FVS(FvsCore):
 
     Args:
         lib_path: Path to the FVS shared library, e.g. `/usr/local/lib/FVSpn.so`.
+        memory_tables: Keep the output database (the `DSNOut` tables) in memory
+            instead of a file, readable with `table_names` and `get_table`.
+            Applied by each `load_keyfile`, so it can also be changed between
+            runs by assigning `fvs.memory_tables`.
 
     Raises:
         ImportError: If the library doesn't export every routine fvs2py needs.
@@ -632,3 +636,37 @@ class FVS(FvsCore):
     def set_ffe_attr(self, attr: str, arr: npt.NDArray[np.float64]) -> None:
         """Set one `fvsFFEAttrs` fallyrs column (shape `(maxspecies,)`)."""
         FFE.set(self._invoke, attr, arr, self.dims[STR_MAXSPECIES])
+
+    # -- Output tables ---------------------------------------------------------
+
+    @property
+    def table_names(self) -> list[str]:
+        """Return the names of the in-memory output tables.
+
+        Read tables before the next `load_keyfile`, which discards them.
+
+        Raises:
+            KeyError: If memory mode is off.
+        """
+        return _tables.table_names(self._invoke)
+
+    def get_table(self, name: str) -> pd.DataFrame:
+        """Return every row of in-memory output table `name`.
+
+        Columns are in table order. Integer columns are `Int64`, other numeric
+        columns `float64` (NULL is NaN), and text columns `str` (NULL is `""`).
+
+        Raises:
+            KeyError: If the table doesn't exist or memory mode is off.
+            ValueError: If `name` is empty or too long.
+        """
+        return _tables.get_table(self._invoke, name)
+
+    def clear_table(self, name: str) -> None:
+        """Drop in-memory output table `name`; FVS recreates it on next write.
+
+        Raises:
+            KeyError: If the table doesn't exist or memory mode is off.
+            ValueError: If `name` is empty or too long.
+        """
+        _tables.clear_table(self._invoke, name)
