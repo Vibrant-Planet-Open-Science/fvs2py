@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.3.0...v0.3.1) (2026-11-22)
+
+
+### Features
+
+* adds FVS.version and FVS.build_info ([#82](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/82)) ([3a162b8](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/3a162b83df56fc6b0beb80a165607bafdae94e49))
+* reads FVS output tables in memory ([#84](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues/84)) ([794d2e9](https://github.com/Vibrant-Planet-Open-Science/fvs2py/commit/794d2e96deccd8853e6ee0eccfc93965c8785f92))
+
 ## [0.3.0](https://github.com/Vibrant-Planet-Open-Science/fvs2py/compare/v0.2.2...v0.3.0) (2026-11-18)
 
 
