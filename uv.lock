@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 2
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -85,7 +85,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -315,6 +315,17 @@ wheels = [
 ]
 
 [[package]]
+name = "fvs-runtime"
+version = "2027.1.1.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/72/f3/9e588085da262d550291f7e70e72e2360995450159da3a8631ff20d527cc/fvs_runtime-2027.1.1.0-py3-none-macosx_15_0_arm64.whl", hash = "sha256:0fda31c0c318e291b1eb7edaeb33de69efb0ce7875533582efe4e6f3b42ae1f2", size = 50722592, upload-time = "2026-11-22T07:19:04.971Z" },
+    { url = "https://files.pythonhosted.org/packages/15/90/552d54e761b9d203203d50917f5435e416252903ca51d00256c6f3ec0735/fvs_runtime-2027.1.1.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:eeb72c32c2b60ec703575dc98f9146e440ebd583c8bb539e14ac6f44424710e4", size = 47107066, upload-time = "2026-11-22T07:19:07.893Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/9a/ebdb440e36871619eae8d38ed9c6c116fb51f7c07f8352a0f00c44556039/fvs_runtime-2027.1.1.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:1f5243c67f011b660391c031ca4d730d2e27383480d6d40c8b0a5e22606043f6", size = 51255432, upload-time = "2026-11-22T07:19:10.771Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/93/520af4cad8bda3cdcdf7861d3245ed1f8c0d261f9b6f5723c21e6ffff022/fvs_runtime-2027.1.1.0-py3-none-win_amd64.whl", hash = "sha256:7fc187357e32ff59154a8a199e78fe5b5b925dc6fa4bb401b8708c472449d5b8", size = 55445088, upload-time = "2026-11-22T07:19:13.841Z" },
+]
+
+[[package]]
 name = "fvs2py"
 version = "0.3.1"
 source = { editable = "." }
@@ -334,9 +345,13 @@ dev = [
     { name = "pytest-mock" },
     { name = "ruff" },
 ]
+runtime = [
+    { name = "fvs-runtime" },
+]
 
 [package.metadata]
 requires-dist = [
+    { name = "fvs-runtime", marker = "extra == 'runtime'", specifier = ">=2027.1.1" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = "==7.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.1.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "==0.11.0" },
@@ -348,7 +363,7 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = "==3.15.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.13" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["runtime", "dev"]
 
 [[package]]
 name = "identify"
@@ -825,7 +840,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [

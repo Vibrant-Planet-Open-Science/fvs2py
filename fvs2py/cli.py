@@ -3,11 +3,12 @@
 These two commands do the same thing:
 
     FVSpn --keywordfile=name.key
-    fvs --lib=/usr/local/lib/FVSpn.so --keywordfile=name.key
+    fvs --variant=pn --keywordfile=name.key
 
-Every argument other than `--lib` is passed straight to FVS. The exit status
-matches the FVS executables: 0 on success, otherwise 10 times the FVS error
-code.
+`--variant` loads the library from fvs-runtime (`pip install
+'fvs2py[runtime]'`); `--lib=/path/to/FVSpn.so` loads any other. Every other
+argument is passed straight to FVS. The exit status matches the FVS executables:
+0 on success, otherwise 10 times the FVS error code.
 
 Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 """
@@ -20,6 +21,7 @@ import os
 import sys
 
 from fvs2py._base import FVS
+from fvs2py._core import runtime_library_path
 from fvs2py.enums import FvsItrnCode
 
 
@@ -36,17 +38,26 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="fvs",
         description=(
-            "Run FVS through fvs2py. Arguments other than --lib are passed "
-            "to FVS unchanged."
+            "Run FVS through fvs2py. Arguments other than --variant and --lib "
+            "are passed to FVS unchanged."
         ),
         allow_abbrev=False,
     )
-    parser.add_argument(
-        "--lib", required=True, help="path to the FVS shared library"
+    lib_group = parser.add_mutually_exclusive_group(required=True)
+    lib_group.add_argument(
+        "--variant", help="FVS variant to load from fvs-runtime, e.g. pn"
     )
+    lib_group.add_argument("--lib", help="path to the FVS shared library")
     args, fvs_args = parser.parse_known_args(argv)
 
-    if not os.path.isfile(args.lib):
+    if args.variant:
+        try:
+            lib = runtime_library_path(args.variant)
+        except (ImportError, LookupError) as e:
+            parser.error(str(e))
+    elif os.path.isfile(args.lib):
+        lib = args.lib
+    else:
         parser.error(f"--lib {args.lib!r} does not exist")
 
     # Python traceback on SIGSEGV/SIGFPE/SIGABRT; the signal is re-raised so the
@@ -56,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     # buffered just before a crash is lost.
     os.environ.setdefault("GFORTRAN_UNBUFFERED_PRECONNECTED", "y")
 
-    fvs = FVS(args.lib)
+    fvs = FVS(lib_path=lib)
 
     fvs._set_cmdline(" ".join(fvs_args))
     while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:

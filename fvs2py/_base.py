@@ -36,14 +36,20 @@ class FVS(FvsCore):
     concurrent runs, use one process per instance.
 
     Args:
-        lib_path: Path to the FVS shared library, e.g. `/usr/local/lib/FVSpn.so`.
+        variant: Variant code, e.g. `"pn"`, to load that variant's library from
+            fvs-runtime (`pip install 'fvs2py[runtime]'`).
+        lib_path: Path to an FVS shared library to load instead of `variant`,
+            e.g. `/usr/local/lib/FVSpn.so`.
         memory_tables: Keep the output database (the `DSNOut` tables) in memory
             instead of a file, readable with `table_names` and `get_table`.
             Applied by each `load_keyfile`, so it can also be changed between
             runs by assigning `fvs.memory_tables`.
 
     Raises:
-        ImportError: If the library doesn't export every routine fvs2py needs.
+        TypeError: If not exactly one of `lib_path` and `variant` is given.
+        ImportError: If the library doesn't export every routine fvs2py needs,
+            or `variant` is given without fvs-runtime installed.
+        LookupError: If fvs-runtime doesn't have `variant`.
         RuntimeError: If another instance in this process is paused mid-run.
     """
 
@@ -74,7 +80,6 @@ class FVS(FvsCore):
         """Return information about the FVS build.
 
         Keys are `Version`, `Org`, `Remote`, `Branch`, `Commit`, and `Date`.
-        Log this with run outputs to record exactly which FVS produced them.
         """
         return _calls.build_info(self._invoke)
 
