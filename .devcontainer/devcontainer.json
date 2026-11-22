@@ -2,11 +2,7 @@
     "name": "fvs2py Dev Container",
     "build": {
         "dockerfile": "../Dockerfile",
-        "context": "..",
-        "target": "dev",
-        "args": {
-            "FVS_TAG": "FS2026.1"
-        }
+        "context": ".."
     },
     "remoteUser": "fvs2py-dev",
     "updateRemoteUserUID": true,
