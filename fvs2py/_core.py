@@ -11,6 +11,8 @@ from __future__ import annotations
 import ctypes as ct
 import logging
 import os
+import platform
+import sys
 import threading
 import warnings
 from pathlib import Path
@@ -30,6 +32,25 @@ _ACTIVE: FvsCore | None = None
 # One global lock: FVS itself is not thread-safe. Reentrant because eviction
 # unloads the holder under the lock.
 _ACTIVE_LOCK = threading.RLock()
+
+
+# FVS runs with floating-point traps off, so a fault only sets a flag. The C
+# library that reads the flags, and each flag's bit, differ by platform.
+_FENV = ct.CDLL(
+    {"win32": "ucrtbase", "darwin": "libSystem.dylib"}.get(
+        sys.platform, "libm.so.6"
+    )
+)
+_FP_BITS = (
+    (0x10, 0x08, 0x04, 0x02)
+    if sys.platform == "win32"
+    else (0x01, 0x04, 0x08, 0x10)
+    if platform.machine().lower() in {"x86_64", "amd64"}
+    else (0x01, 0x02, 0x04, 0x08)  # arm64
+)
+_FP_FAULTS = dict(
+    zip(("invalid", "divide-by-zero", "overflow", "underflow"), _FP_BITS)
+)
 
 
 class FvsCore:
@@ -78,6 +99,7 @@ class FvsCore:
         self._stop_point_code: ct.c_int | None = None
         self._stop_point_year: ct.c_int | None = None
         self._evmon_names: dict[str, None] = dict.fromkeys(EVMON_ATTRS)
+        self._fp_faults: set[str] = set()
 
     def _invoke(self, name: str, /, **kwargs: Any) -> Any:
         """Call the FVS routine `name` via its `FVS_ROUTINES` declaration.
@@ -251,7 +273,7 @@ class FvsCore:
         self._require_keyfile()
         self._set_stop_point_codes(stop_point_code, stop_point_year)
         while self._invoke("fvsGetRtnCode") == FvsItrnCode.GOOD_RUNNING_STATE:
-            self._invoke("fvs", itrncd=self._itrncd)
+            self._call_fvs()
             if self._invoke("fvsGetRestartCode") != FvsRestartCode.INITIALIZED:
                 break
 
@@ -262,7 +284,27 @@ class FvsCore:
             self._invoke("fvsGetRestartCode")
             == FvsRestartCode.DONE_RUNNING_STAND
         ):
-            self._invoke("fvs", itrncd=self._itrncd)
+            self._call_fvs()
+
+    def _call_fvs(self) -> None:
+        """Call `fvs`, collecting the floating-point faults it raises."""
+        # Cleared per call, so flags Python sets between calls aren't counted.
+        _FENV.feclearexcept(sum(_FP_BITS))
+        self._invoke("fvs", itrncd=self._itrncd)
+        flags = _FENV.fetestexcept(sum(_FP_BITS))
+        self._fp_faults.update(
+            n for n, bit in _FP_FAULTS.items() if flags & bit
+        )
+
+    def _warn_fp_faults(self) -> None:
+        """Warn once about the faults collected since the last warning."""
+        if self._fp_faults:
+            msg = (
+                f"FVS floating-point fault: {', '.join(sorted(self._fp_faults))}"
+                ". Results may contain NaN or Inf."
+            )
+            warnings.warn(msg, RuntimeWarning, stacklevel=3)
+            self._fp_faults.clear()
 
 
 def runtime_library_path(variant: str) -> Path:

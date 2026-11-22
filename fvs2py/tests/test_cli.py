@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import importlib.resources
+import subprocess
+import sys
+
+import numpy as np
 import pytest
 
 from fvs2py import cli
@@ -14,6 +19,7 @@ class FakeFVS(FvsCore):
         self.itrncd = 0
         self.exit_code = 2
         self.calls = []
+        self._fp_faults = set()
         self.version = "2027.1.1 (USDAForestService)"
 
     def _invoke(self, name, **kwargs):
@@ -64,6 +70,39 @@ def test_version_flags_print_and_skip_the_run(fake_fvs, capsys, flag, expected):
     assert cli.main([f"--lib={lib}", flag]) == 0
     assert capsys.readouterr().out == expected
     assert "fvs" not in dict(fvs.calls)
+
+
+def test_fp_fault_is_reported_and_exits_3(fake_fvs, capsys, mocker):
+    lib, fvs = fake_fvs
+    fvs.exit_code = 0
+
+    def overflow(name, **_):
+        if name == "fvs":
+            with np.errstate(over="ignore"):
+                np.float64(1e308) * 10
+            fvs.itrncd = 2
+
+    mocker.patch.object(fvs, "_invoke", side_effect=overflow)
+    assert cli.main([f"--lib={lib}", "--keywordfile=k.key"]) == 3
+    assert "FVS floating-point fault: overflow" in capsys.readouterr().err
+
+
+def test_real_run_has_no_fp_faults(tmp_path):
+    keyfile = importlib.resources.files("fvs2py.tests.keyfiles") / "SO.key"
+    (tmp_path / "SO.key").write_text(keyfile.read_text())
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "fvs2py.cli",
+            "--variant=so",
+            "--keywordfile=SO.key",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert proc.returncode == 0, proc.stderr
 
 
 def test_missing_lib_exits_2(tmp_path):
