@@ -11,6 +11,10 @@ argument is passed straight to FVS. The exit status matches the FVS executables:
 0 on success, otherwise 10 times the FVS error code. As with the executables, a
 first FVS argument of `--version` or `--build-info` prints that and exits.
 
+A floating-point fault (invalid, divide-by-zero, overflow, underflow) doesn't
+stop FVS; it is reported on stderr after the run, and exits 3 if FVS otherwise
+succeeded.
+
 Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 """
 
@@ -82,11 +86,16 @@ def main(argv: list[str] | None = None) -> int:
 
     fvs._set_cmdline(" ".join(fvs_args))
     while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:
-        fvs._invoke("fvs", itrncd=fvs._itrncd)
+        fvs._call_fvs()
+    faults = sorted(fvs._fp_faults)
+    for name in faults:
+        sys.stderr.write(f"FVS floating-point fault: {name}\n")
 
     status = 10 * fvs.exit_code
     if status:
         sys.stderr.write(f"STOP {status}\n")
+    elif faults:
+        status = 3
     return status
 
 

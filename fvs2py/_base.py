@@ -145,8 +145,13 @@ class FVS(FvsCore):
 
         Raises:
             RuntimeError: If no keyfile has been loaded yet.
+
+        Warns:
+            RuntimeWarning: If FVS raised a floating-point fault, which it
+                doesn't stop for.
         """
         self._run(stop_point_code, stop_point_year)
+        self._warn_fp_faults()
 
     def run_batch(
         self, stop_point_code: int = 0, stop_point_year: int = 0
@@ -185,8 +190,13 @@ class FVS(FvsCore):
 
         Raises:
             RuntimeError: If no keyfile has been loaded yet.
+
+        Warns:
+            RuntimeWarning: If FVS raised a floating-point fault, which it
+                doesn't stop for.
         """
         self._run_batch(stop_point_code, stop_point_year)
+        self._warn_fp_faults()
 
     def set_stop_point_codes(
         self,

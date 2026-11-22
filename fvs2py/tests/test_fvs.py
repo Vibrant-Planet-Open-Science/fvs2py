@@ -374,6 +374,21 @@ def test_run_flushes_when_stand_done(make_fvs):
     assert lib.fvs_calls == 1
 
 
+def test_run_warns_on_fp_fault(make_fvs):
+    fvs, _ = make_fvs(
+        itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
+        restart_code=int(FvsRestartCode.DONE_RUNNING_STAND),
+    )
+
+    def overflow(_itrncd):
+        with np.errstate(over="ignore"):
+            np.float64(1e308) * 10
+
+    fvs._funcs["fvs"] = overflow
+    with pytest.warns(RuntimeWarning, match="overflow"):
+        fvs.run()
+
+
 def test_run_batch_does_not_flush_when_stand_done(make_fvs):
     fvs, lib = make_fvs(
         itrncd=int(FvsItrnCode.FINISHED_ALL_STANDS),
