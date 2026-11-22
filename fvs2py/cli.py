@@ -8,7 +8,8 @@ These two commands do the same thing:
 `--variant` loads the library from fvs-runtime (`pip install
 'fvs2py[runtime]'`); `--lib=/path/to/FVSpn.so` loads any other. Every other
 argument is passed straight to FVS. The exit status matches the FVS executables:
-0 on success, otherwise 10 times the FVS error code.
+0 on success, otherwise 10 times the FVS error code. As with the executables, a
+first FVS argument of `--version` or `--build-info` prints that and exits.
 
 Run `fvs` as a subprocess to survive FVS crashes and capture its output.
 """
@@ -20,6 +21,7 @@ import faulthandler
 import os
 import sys
 
+from fvs2py import _calls
 from fvs2py._base import FVS
 from fvs2py._core import runtime_library_path
 from fvs2py.enums import FvsItrnCode
@@ -68,6 +70,15 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("GFORTRAN_UNBUFFERED_PRECONNECTED", "y")
 
     fvs = FVS(lib_path=lib)
+
+    if fvs_args[:1] == ["--version"]:
+        sys.stdout.write(f"{fvs.version}\n")
+        return 0
+    if fvs_args[:1] == ["--build-info"]:
+        # FVS's own text, not `fvs.build_info`, to match the executables exactly.
+        text = _calls._read_text(fvs._invoke, "fvsGetBuildInfo", 512)
+        sys.stdout.write(f"{text}\n")
+        return 0
 
     fvs._set_cmdline(" ".join(fvs_args))
     while fvs.itrncd == FvsItrnCode.GOOD_RUNNING_STATE:

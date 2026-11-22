@@ -14,11 +14,17 @@ class FakeFVS(FvsCore):
         self.itrncd = 0
         self.exit_code = 2
         self.calls = []
+        self.version = "2027.1.1 (USDAForestService)"
 
     def _invoke(self, name, **kwargs):
         self.calls.append((name, kwargs))
+        if name == "fvsGetBuildInfo":
+            text = b"Version: 2027.1.1\nOrg:     USDAForestService"
+            kwargs["buf"][: len(text)] = text
+            return len(text)
         if name == "fvs":
             self.itrncd = 2
+        return None
 
 
 @pytest.fixture
@@ -44,6 +50,20 @@ def test_passes_fvs_args_through_and_mirrors_exit_status(fake_fvs, capsys):
     assert kwargs["nch"].value == len(kwargs["cmdline"])
     assert status == 20
     assert "STOP 20" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("flag", "expected"),
+    [
+        ("--version", "2027.1.1 (USDAForestService)\n"),
+        ("--build-info", "Version: 2027.1.1\nOrg:     USDAForestService\n"),
+    ],
+)
+def test_version_flags_print_and_skip_the_run(fake_fvs, capsys, flag, expected):
+    lib, fvs = fake_fvs
+    assert cli.main([f"--lib={lib}", flag]) == 0
+    assert capsys.readouterr().out == expected
+    assert "fvs" not in dict(fvs.calls)
 
 
 def test_missing_lib_exits_2(tmp_path):
