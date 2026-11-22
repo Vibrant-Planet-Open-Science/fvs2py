@@ -25,7 +25,7 @@ from fvs2py.enums import (
     FvsVariant,
 )
 
-TEST_DLL = "/usr/local/lib/FVSso.so"
+TEST_VARIANT = "so"
 TEST_KEYFILE_PATH = importlib.resources.files("fvs2py.tests.keyfiles").joinpath(
     "SO.key"
 )
@@ -36,7 +36,7 @@ SO_KEYFILE_STAND_IDS = {"stand_id": "12345", "stand_cn": "", "mgmt_id": "NONE"}
 @pytest.fixture
 def fvs():  # setup and teardown for FVS loaded from DLL/SO
     # Setup code executed before each test function
-    fvs = FVS(lib_path=TEST_DLL)
+    fvs = FVS(TEST_VARIANT)
     yield fvs
     # Teardown code executed after each test function
     fvs.close()
@@ -273,7 +273,7 @@ def test_exit_code_input_data_error(fvs, keyfile):
 
 
 def test_dims(keyfile):
-    fvs = FVS(lib_path=TEST_DLL)
+    fvs = FVS(TEST_VARIANT)
     fvs.load_keyfile(keyfile)
     fvs.run(
         -1
@@ -340,7 +340,7 @@ def test_summary(fvs, keyfile):
 
 @pytest.mark.parametrize("variant", FvsVariant)
 def test_species_codes(variant):
-    fvs = FVS(lib_path=f"/usr/local/lib/FVS{variant.lower()}.so")
+    fvs = FVS(variant)
     dims = fvs.dims
     max_species = dims[STR_MAXSPECIES]
 
@@ -351,7 +351,7 @@ def test_species_codes(variant):
 
 @pytest.mark.parametrize("variant", FvsVariant)
 def test_species_attrs(variant, keyfile, recwarn):
-    fvs = FVS(lib_path=f"/usr/local/lib/FVS{variant.lower()}.so")
+    fvs = FVS(variant)
 
     # warning should be raised if run hasn't been started
     fvs.species_attrs
@@ -445,10 +445,10 @@ def test_keyfile_reload_warning(fvs, keyfile, recwarn):
 
 
 def test_opening_second_instance_closes_idle_first(keyfile):
-    a = FVS(lib_path=TEST_DLL)
+    a = FVS(TEST_VARIANT)
     a.load_keyfile(keyfile)
     a.run()
-    b = FVS(lib_path=TEST_DLL)
+    b = FVS(TEST_VARIANT)
     assert a.closed
     assert not b.closed
     with pytest.raises(RuntimeError, match=f"keyfile {keyfile}.* is closed"):
@@ -474,14 +474,14 @@ def test_opening_second_instance_closes_idle_first(keyfile):
 def test_opening_second_instance_raises_while_first_mid_run(
     keyfile, run_kwargs, restart_name
 ):
-    a = FVS(lib_path=TEST_DLL)
+    a = FVS(TEST_VARIANT)
     a.load_keyfile(keyfile)
     a.run_batch(**run_kwargs)
     restart_before = a.restart_code
     assert restart_before.name == restart_name
 
     with pytest.raises(RuntimeError) as excinfo:
-        FVS(lib_path=TEST_DLL)
+        FVS(TEST_VARIANT)
     msg = str(excinfo.value)
     for part in (
         "variant SO",
@@ -500,23 +500,23 @@ def test_opening_second_instance_raises_while_first_mid_run(
 
 
 def test_close_frees_slot_for_paused_instance(keyfile):
-    a = FVS(lib_path=TEST_DLL)
+    a = FVS(TEST_VARIANT)
     a.load_keyfile(keyfile)
     a.run(stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON)
     a.close()
     a.close()  # idempotent
-    b = FVS(lib_path=TEST_DLL)
+    b = FVS(TEST_VARIANT)
     assert b.itrncd == FvsItrnCode.NOT_STARTED
     b.close()
 
 
 def test_opening_second_instance_warns_when_first_errored(keyfile):
     keyfile.with_suffix(".out").mkdir()
-    a = FVS(lib_path=TEST_DLL)
+    a = FVS(TEST_VARIANT)
     a.load_keyfile(keyfile)
     assert a.itrncd == FvsItrnCode.ERROR
     with pytest.warns(UserWarning, match="existing one in an error state"):
-        b = FVS(lib_path=TEST_DLL)
+        b = FVS(TEST_VARIANT)
     assert a.closed
     b.close()
 
@@ -524,11 +524,11 @@ def test_opening_second_instance_warns_when_first_errored(keyfile):
 def test_second_variant_raises_instead_of_crashing(keyfile):
     # On Linux every variant shares libgfortran's I/O units; interleaving two
     # runs used to abort the process with a Fortran runtime error.
-    pn = FVS(lib_path="/usr/local/lib/FVSpn.so")
+    pn = FVS("pn")
     pn.load_keyfile(keyfile)
     pn.run(stop_point_code=FvsStopPointCode.AFTER_FIRST_EVMON)
     with pytest.raises(RuntimeError, match="variant PN"):
-        FVS(lib_path=TEST_DLL)
+        FVS(TEST_VARIANT)
     pn.run()
     assert pn.itrncd == FvsItrnCode.FINISHED_ALL_STANDS
     pn.close()
@@ -549,7 +549,7 @@ def summary_keyfile(tmp_path):
 
 
 def test_memory_tables(summary_keyfile):
-    fvs = FVS(lib_path=TEST_DLL, memory_tables=True)
+    fvs = FVS(TEST_VARIANT, memory_tables=True)
     fvs.load_keyfile(summary_keyfile)
     fvs.run()
 
