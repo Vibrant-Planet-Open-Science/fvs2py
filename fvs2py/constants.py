@@ -306,4 +306,6 @@ SUMMARY_COLS = (
     "fortyp",
     "sizecls",
     "stkcls",
+    "scuft",
+    "rscuft",
 )

@@ -82,6 +82,23 @@ def summary(invoke: Invoke) -> pd.DataFrame | None:
     ncycles = invoke("fvsDimSizes")[STR_NCYCLES]
     if ncycles == 0:
         return None
+    # FVS sets maxcol before checking icycle, so cycle 0 reports the row width
+    # without writing a row.
+    maxcol = ct.c_int(0)
+    invoke(
+        "fvsSummary",
+        summary=np.zeros(0, dtype=np.intc),
+        icycle=ct.c_int(0),
+        ncycles=ct.c_int(ncycles),
+        maxrow=ct.c_int(0),
+        maxcol=maxcol,
+    )
+    if maxcol.value != len(SUMMARY_COLS):
+        msg = (
+            f"FVS writes {maxcol.value} summary values per cycle, but fvs2py "
+            f"expects {len(SUMMARY_COLS)}."
+        )
+        raise RuntimeError(msg)
     rows = np.zeros(dtype=np.intc, shape=(ncycles + 1, len(SUMMARY_COLS)))
     for i in range(ncycles + 1):
         invoke(
