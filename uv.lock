@@ -336,6 +336,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "fvs-runtime" },
     { name = "ipykernel" },
     { name = "mypy" },
     { name = "nbval" },
@@ -352,6 +353,7 @@ runtime = [
 [package.metadata]
 requires-dist = [
     { name = "fvs-runtime", marker = "extra == 'runtime'", specifier = ">=2027.1.1" },
+    { name = "fvs2py", extras = ["runtime"], marker = "extra == 'dev'" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = "==7.2.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.1.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "==0.11.0" },
