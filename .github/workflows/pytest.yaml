@@ -28,6 +28,22 @@ jobs:
 
       - run: uv run pytest fvs2py
 
+      # Temporary: find what aborts the macOS 15 process at exit.
+      - name: Diagnose macOS abort
+        if: failure() && runner.os == 'macOS'
+        run: |
+          probe() { uv run python -c "$1"; echo "exit $? <- $1"; }
+          probe "from fvs2py import FVS"
+          probe "from fvs2py import FVS; FVS('so')"
+          probe "from fvs2py import FVS; FVS('so').close()"
+          probe "from fvs2py import FVS; FVS('so').close(); FVS('pn').close()"
+          for f in fvs2py/tests/test_*.py; do
+            uv run pytest -q "$f" > /dev/null 2>&1; echo "exit $? <- $f"
+          done
+          for f in ~/Library/Logs/DiagnosticReports/*.ips; do
+            echo "== $f"; head -c 20000 "$f"
+          done
+
   nbval:
     needs: test
     runs-on: ubuntu-latest
