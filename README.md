@@ -13,7 +13,7 @@ We will then build upon the addition of new subroutines in Fortran that extend t
 pip install fvs2py
 ```
 
-fvs2py is a wrapper, and doesn't currently ship with the FVS libraries included. You supply a compiled FVS variant library, either your own build, an official [USFS release](https://www.fs.usda.gov/fvs/software/variantinstaller.php) (currently Windows only), or one from the [`usfs-fvs` container image](https://github.com/Vibrant-Planet-Open-Science/fvs-build/pkgs/container/usfs-fvs) (`ghcr.io/vibrant-planet-open-science/usfs-fvs`), which has every variant's library at `/usr/local/lib/FVS<variant>.so`.  We're working to make updates to this package so that it can come with FVS libraries included and will keep this documentation up-to-date when those updates land.
+fvs2py is a wrapper, and doesn't currently ship with the FVS libraries included. You supply a compiled FVS variant library, either your own build, an official [USFS release](https://www.fs.usda.gov/fvs/software/variantinstaller.php) (currently Windows only), or one from the [`usfs-fvs` container image](https://github.com/Vibrant-Planet-Open-Science/fvs-build/pkgs/container/usfs-fvs) (`ghcr.io/vibrant-planet-open-science/usfs-fvs`), which has every variant's library at `/usr/local/lib/FVS<variant>.so`. fvs2py requires FVS 2027.1.1 or later.  We're working to make updates to this package so that it can come with FVS libraries included and will keep this documentation up-to-date when those updates land.
 
 ## Usage
 
@@ -24,7 +24,11 @@ fvs = FVS("/path/to/FVSpn.so")
 fvs.load_keyfile("name.key")
 fvs.run()
 fvs.summary  # pandas DataFrame
+fvs.version     # "2027.1.1 (USDAForestService)"
+fvs.build_info  # dict: Version, Org, Remote, Branch, Commit, Date
 ```
+
+Log `fvs.build_info` alongside your run outputs to record exactly which FVS build produced them.
 
 ## Command line
 

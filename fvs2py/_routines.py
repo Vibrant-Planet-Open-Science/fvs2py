@@ -272,6 +272,16 @@ def attr_accessor_policy(rc: int) -> None:
     raise RuntimeError(member.message)
 
 
+# Fills a caller-owned `buf` of `buflen` bytes and returns the length written.
+_TEXT_BUF = Routine(
+    params=(
+        Param(name="buf", ctype=ct.c_char_p),
+        Param(name="buflen", ctype=ct.POINTER(ct.c_int)),
+        out_int("nch"),
+    ),
+    rc_param=None,
+)
+
 _RAW_ROUTINES: dict[str, Routine] = {
     # Keyed by un-mangled FVS routine name; params in Fortran declaration order.
     "fvs": Routine(
@@ -286,6 +296,8 @@ _RAW_ROUTINES: dict[str, Routine] = {
         params=(out_int("rtn_code"),),
         rc_param=None,
     ),
+    "fvsGetVersion": _TEXT_BUF,
+    "fvsGetBuildInfo": _TEXT_BUF,
     "fvsGetRestartCode": Routine(
         params=(out_int("restart_code"),),
         rc_param=None,

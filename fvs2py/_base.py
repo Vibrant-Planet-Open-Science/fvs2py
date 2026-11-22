@@ -60,6 +60,20 @@ class FVS(FvsCore):
         """Whether this instance's library has been unloaded."""
         return self._lib is None
 
+    @property
+    def version(self) -> str:
+        """Return the FVS version, e.g. `"2027.1.1 (USDAForestService)"`."""
+        return _calls.version(self._invoke)
+
+    @property
+    def build_info(self) -> dict[str, str]:
+        """Return information about the FVS build.
+
+        Keys are `Version`, `Org`, `Remote`, `Branch`, `Commit`, and `Date`.
+        Log this with run outputs to record exactly which FVS produced them.
+        """
+        return _calls.build_info(self._invoke)
+
     def load_keyfile(
         self,
         keywordfile: str | os.PathLike,

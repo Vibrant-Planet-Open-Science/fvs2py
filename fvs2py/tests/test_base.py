@@ -60,6 +60,17 @@ def keyfile(tmp_path):
     return keyfile_path
 
 
+def test_version(fvs):
+    info = fvs.build_info
+    assert fvs.version == f"{info['Version']} ({info['Org']})"
+
+
+def test_build_info(fvs):
+    info = fvs.build_info
+    assert set(info) == {"Version", "Org", "Remote", "Branch", "Commit", "Date"}
+    assert info["Commit"] != "unknown"
+
+
 def test_load_keyfile(fvs, keyfile):
     """Checks that keyfile attributes get populated and itrncd updates."""
     assert fvs.itrncd == FvsItrnCode.NOT_STARTED
