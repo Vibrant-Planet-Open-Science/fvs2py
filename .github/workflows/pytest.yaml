@@ -1,47 +1,40 @@
-name: Pytest with Docker
+name: Pytest
 
 on: [pull_request]
 
 permissions:
   contents: read
 
-env:
-  FVS_TAG: 2027.1.1
-  CI_IMAGE: fvs2py-ci:dev
-
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  pytest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
+        python: ["3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
       - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
+          python-version: ${{ matrix.python }}
 
       - name: Check uv.lock is up to date
         run: uv lock --check
 
-      - uses: docker/setup-buildx-action@v4
+      - run: uv sync --frozen --extra dev
 
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: dev
-          tags: ${{ env.CI_IMAGE }}
-          load: true
-          build-args: FVS_TAG=${{ env.FVS_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - run: uv run pytest fvs2py
 
-      - name: Run tests inside dev image
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspaces/fvs2py" \
-            -w /workspaces/fvs2py \
-            -e PYTHONPATH=/workspaces/fvs2py \
-            ${{ env.CI_IMAGE }} \
-            bash -c 'uv sync --frozen --extra dev && uv run pytest .'
+  # The one check the main ruleset requires, so the matrix can change freely.
+  test:
+    if: always()
+    needs: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.pytest.result }}" = success
 
   nbval:
     needs: test
@@ -54,7 +47,6 @@ jobs:
 
       - name: Fetch PR base commit
         run: |
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
           git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}"
 
       - name: List changed notebooks
@@ -94,33 +86,16 @@ jobs:
 
           echo "skip=false" >> "${GITHUB_OUTPUT}"
 
-      - uses: docker/setup-buildx-action@v4
-        if: steps.notebooks.outputs.skip != 'true'
-
-      - uses: docker/build-push-action@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         if: steps.notebooks.outputs.skip != 'true'
         with:
-          context: .
-          target: dev
-          tags: ${{ env.CI_IMAGE }}
-          load: true
-          build-args: FVS_TAG=${{ env.FVS_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          enable-cache: true
 
       - name: Run nbval-lax on changed notebooks
         if: steps.notebooks.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}:/workspaces/fvs2py" \
-            -w /workspaces/fvs2py \
-            -e PYTHONPATH=/workspaces/fvs2py \
-            ${{ env.CI_IMAGE }} \
-            bash -c '
-              set -euo pipefail
-              uv sync --frozen --extra dev
-              mapfile -d "" -t notebooks < /workspaces/fvs2py/.ci-changed-notebooks
-              exec uv run pytest --nbval-lax "${notebooks[@]}"
-            '
+          uv sync --frozen --extra dev
+          mapfile -d '' -t notebooks < .ci-changed-notebooks
+          uv run pytest --nbval-lax "${notebooks[@]}"

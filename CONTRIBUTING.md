@@ -5,15 +5,15 @@
 Open an issue at [fvs2py issues](https://github.com/Vibrant-Planet-Open-Science/fvs2py/issues) and include:
 
 - your fvs2py version (`pip show fvs2py`)
-- the FVS variant and where the library came from: your own build, or the `usfs-fvs` image tag
+- the FVS variant and where the library came from: your own build, or the fvs-runtime version (`pip show fvs-runtime`)
 - a minimal keyword file that reproduces the problem, if you can share one
 - the full traceback, or the FVS error output from the `.out` file
 
-If FVS itself gives the wrong result (the same behavior happens when you run the variant's executable, e.g. `FVSpn`, directly), report it to the [Forest Vegetation Simulator project](https://github.com/USDAForestService/ForestVegetationSimulator/issues). Problems with the `usfs-fvs` container image belong in [fvs-build](https://github.com/Vibrant-Planet-Open-Science/fvs-build/issues).
+If you're confident the problem is in FVS's own results rather than in fvs2py, you can also report it to the [Forest Vegetation Simulator project](https://github.com/USDAForestService/ForestVegetationSimulator/issues). Problems installing or loading the fvs-runtime libraries belong in [fvs-runtime](https://github.com/Vibrant-Planet-Open-Science/fvs-runtime/issues).
 
 ## Development environment
 
-A **dev container** is provided under [`.devcontainer/`](.devcontainer/) for VS Code. Open the repository with **Dev Containers: Reopen in Container** to get the `dev` Docker target, Python tooling, and extensions preconfigured. On first open, `postCreateCommand` runs `uv sync --frozen --extra dev` (creating a project-local `.venv` in your clone, gitignored) and installs pre-commit hooks. After pulling changes that touch the Dockerfile or lockfile, **rebuild** the dev container (or run `uv sync --extra dev` manually).
+A **dev container** is provided under [`.devcontainer/`](.devcontainer/) for VS Code. Open the repository with **Dev Containers: Reopen in Container** to get Python tooling and extensions preconfigured. On first open, `postCreateCommand` runs `uv sync --frozen --extra dev` (creating a project-local `.venv` in your clone, gitignored) and installs pre-commit hooks. After pulling changes that touch the Dockerfile or lockfile, **rebuild** the dev container (or run `uv sync --extra dev` manually).
 
 The `.venv` directory lives on your host via the bind-mounted workspace (Linux binaries from the container). You can delete it and re-run `uv sync --extra dev` to recreate.
 
@@ -29,12 +29,12 @@ uv run pre-commit install
 Run tests locally or inside the dev container:
 
 ```bash
-uv run pytest .
+uv run pytest fvs2py
 ```
 
 ## Checks
 
-Hooks run on each commit (secret scan, Ruff, mypy). Run them manually with `uv run pre-commit run --all-files`. CI runs the same checks on pull requests via the Lint workflow, and runs pytest in the `dev` Docker image via the Pytest workflow.
+Hooks run on each commit (secret scan, Ruff, mypy). Run them manually with `uv run pre-commit run --all-files`. CI runs the same checks on pull requests via the Lint workflow, and runs pytest on Linux, macOS and Windows via the Pytest workflow.
 
 ## Style
 
